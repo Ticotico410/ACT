@@ -1,10 +1,11 @@
 import pathlib
+import os
 
 ### Task parameters
-DATA_DIR = '<put your data dir here>'
+DATA_DIR = os.path.join(os.path.dirname(__file__), 'data')
 SIM_TASK_CONFIGS = {
     'sim_transfer_cube_scripted':{
-        'dataset_dir': DATA_DIR + '/sim_transfer_cube_scripted',
+        'dataset_dir': DATA_DIR,
         'num_episodes': 50,
         'episode_len': 400,
         'camera_names': ['top']
@@ -28,6 +29,13 @@ SIM_TASK_CONFIGS = {
         'dataset_dir': DATA_DIR + '/sim_insertion_human',
         'num_episodes': 50,
         'episode_len': 500,
+        'camera_names': ['top']
+    },
+
+    'xarm6_transfer_cube_scripted': {
+        'dataset_dir': DATA_DIR + '/xarm6_transfer_cube',
+        'num_episodes': 50,
+        'episode_len': 400,
         'camera_names': ['top']
     },
 }
@@ -74,3 +82,18 @@ PUPPET_POS2JOINT = lambda x: PUPPET_GRIPPER_POSITION_NORMALIZE_FN(x) * (PUPPET_G
 PUPPET_JOINT2POS = lambda x: PUPPET_GRIPPER_POSITION_UNNORMALIZE_FN((x - PUPPET_GRIPPER_JOINT_CLOSE) / (PUPPET_GRIPPER_JOINT_OPEN - PUPPET_GRIPPER_JOINT_CLOSE))
 
 MASTER_GRIPPER_JOINT_MID = (MASTER_GRIPPER_JOINT_OPEN + MASTER_GRIPPER_JOINT_CLOSE)/2
+
+
+
+# Xarm6 gripper constants
+XARM6_GRIPPER_POSITION_OPEN = 0.85
+XARM6_GRIPPER_POSITION_CLOSE = 0.0
+XARM6_GRIPPER_JOINT_OPEN = 0.85
+XARM6_GRIPPER_JOINT_CLOSE = 0.0
+
+# Xarm6 initial joint positions (24 joints: 6 left arm + 6 left gripper + 6 right arm + 6 right gripper)
+START_XARM6_POSE = [0.0, -0.78, -0.78, 0.0, 1.57, 0.0,  0.0, 0.0, 0.0, 0.0, 0.0, 0.0,  0.0, -0.78, -0.78, 0.0, 1.57, 0.0,  0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+
+XARM6_GRIPPER_POSITION_UNNORMALIZE_FN = lambda x: x * (XARM6_GRIPPER_POSITION_OPEN - XARM6_GRIPPER_POSITION_CLOSE) + XARM6_GRIPPER_POSITION_CLOSE
+XARM6_GRIPPER_POSITION_NORMALIZE_FN = lambda x: (x - XARM6_GRIPPER_POSITION_CLOSE) / (XARM6_GRIPPER_POSITION_OPEN - XARM6_GRIPPER_POSITION_CLOSE)
+XARM6_GRIPPER_VELOCITY_NORMALIZE_FN = lambda x: x / (XARM6_GRIPPER_POSITION_OPEN - XARM6_GRIPPER_POSITION_CLOSE)

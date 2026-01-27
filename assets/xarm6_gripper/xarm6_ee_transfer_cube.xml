@@ -1,0 +1,49 @@
+<mujoco model="xarm6_ee_transfer_cube">
+    <include file="scene.xml"/>
+    <include file="xarm6_dependencies.xml"/>
+
+    <equality>
+        <!-- Mocap weld constraints -->
+        <weld body1="mocap" body2="xarm_gripper_base_link" solref="0.01 1" solimp=".25 .25 0.001" />
+    </equality>
+
+    <worldbody>
+        <include file="xarm6_gripper.xml" />
+        <body mocap="true" name="mocap">
+            <site pos="0 0 0" size="0.003 0.003 0.03" type="box" name="mocap_right_site1" rgba="1 0 0 1"/>
+            <site pos="0 0 0" size="0.003 0.03 0.003" type="box" name="mocap_right_site2" rgba="1 0 0 1"/>
+            <site pos="0 0 0" size="0.03 0.003 0.003" type="box" name="mocap_right_site3" rgba="1 0 0 1"/>
+        </body>
+
+        <body name="box" pos="0.2 0.5 0.05">
+            <joint name="red_box_joint" type="free" frictionloss="0.01" />
+            <inertial pos="0 0 0" mass="0.05" diaginertia="0.002 0.002 0.002" />
+            <geom condim="4" solimp="2 1 0.01" solref="0.01 1" friction="1 0.005 0.0001" pos="0 0 0" size="0.02 0.02 0.02" type="box" name="red_box" rgba="1 0 0 1" />
+        </body>
+
+    </worldbody>
+
+    <!-- Equality constraints to implement mimic behavior: all gripper joints follow drive_joint -->
+    <equality>
+        <!-- Gripper: all mimic joints should equal drive_joint position -->
+        <joint joint1="drive_joint" joint2="left_finger_joint" polycoef="0 1 0 0 0" solref="0.002 1" solimp="0.98 0.99 0.001"/>
+        <joint joint1="drive_joint" joint2="left_inner_knuckle_joint" polycoef="0 1 0 0 0" solref="0.002 1" solimp="0.98 0.99 0.001"/>
+        <joint joint1="drive_joint" joint2="right_outer_knuckle_joint" polycoef="0 1 0 0 0" solref="0.002 1" solimp="0.98 0.99 0.001"/>
+        <joint joint1="drive_joint" joint2="right_finger_joint" polycoef="0 1 0 0 0" solref="0.002 1" solimp="0.98 0.99 0.001"/>
+        <joint joint1="drive_joint" joint2="right_inner_knuckle_joint" polycoef="0 1 0 0 0" solref="0.002 1" solimp="0.98 0.99 0.001"/>
+    </equality>
+
+    <!-- Only gripper actuators for EE environment -->
+    <actuator>
+        <position ctrllimited="true" ctrlrange="0 0.85" joint="drive_joint" kp="200" user="1"/>
+    </actuator>
+
+    <keyframe>
+        <!-- Arm (6 joints) + Gripper (6 joints: drive_joint + 5 mimic joints) = 12 qpos -->
+        <!-- Box pose (7: pos xyz + quat xyzw) -->
+        <!-- Total: 12 + 7 = 19 qpos -->
+        <key qpos="0.0 -0.78 -0.78 0.0 1.57 0.0  0.0 0.0 0.0 0.0 0.0 0.0  0.2 0.5 0.05 1 0 0 0"/>
+    </keyframe>
+
+</mujoco>
+

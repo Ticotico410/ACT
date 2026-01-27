@@ -1,0 +1,42 @@
+<mujoco model="xarm6_transfer_cube">
+    <include file="scene.xml"/>
+    <include file="xarm6_dependencies.xml"/>
+    <worldbody>
+        <include file="xarm6_gripper.xml" />
+
+        <body name="box" pos="0.2 0.5 0.05">
+            <joint name="red_box_joint" type="free" frictionloss="0.01" />
+            <inertial pos="0 0 0" mass="0.05" diaginertia="0.002 0.002 0.002" />
+            <geom condim="4" solimp="2 1 0.01" solref="0.01 1" friction="1 0.005 0.0001" pos="0 0 0" size="0.02 0.02 0.02" type="box" name="red_box" rgba="1 0 0 1" />
+        </body>
+
+    </worldbody>
+
+    <equality>
+        <joint joint1="drive_joint" joint2="left_finger_joint" polycoef="0 1 0 0 0" solref="0.002 1" solimp="0.98 0.99 0.001"/>
+        <joint joint1="drive_joint" joint2="left_inner_knuckle_joint" polycoef="0 1 0 0 0" solref="0.002 1" solimp="0.98 0.99 0.001"/>
+        <joint joint1="drive_joint" joint2="right_outer_knuckle_joint" polycoef="0 1 0 0 0" solref="0.002 1" solimp="0.98 0.99 0.001"/>
+        <joint joint1="drive_joint" joint2="right_finger_joint" polycoef="0 1 0 0 0" solref="0.002 1" solimp="0.98 0.99 0.001"/>
+        <joint joint1="drive_joint" joint2="right_inner_knuckle_joint" polycoef="0 1 0 0 0" solref="0.002 1" solimp="0.98 0.99 0.001"/>
+    </equality>
+
+    <actuator>
+        <!-- arm actuators -->
+        <position ctrllimited="true" ctrlrange="-6.28319 6.28319" joint="joint1" kp="350" user="1" forcelimited="true" forcerange="-50 50"/>
+        <position ctrllimited="true" ctrlrange="-2.059 2.0944" joint="joint2" kp="350" user="1" forcelimited="true" forcerange="-50 50"/>
+        <position ctrllimited="true" ctrlrange="-3.927 0.19198" joint="joint3" kp="350" user="1" forcelimited="true" forcerange="-32 32"/>
+        <position ctrllimited="true" ctrlrange="-6.28319 6.28319" joint="joint4" kp="350" user="1" forcelimited="true" forcerange="-32 32"/>
+        <position ctrllimited="true" ctrlrange="-1.69297 3.14159" joint="joint5" kp="350" user="1" forcelimited="true" forcerange="-32 32"/>
+        <position ctrllimited="true" ctrlrange="-6.28318530718 6.28318530718" joint="joint6" kp="350" user="1" forcelimited="true" forcerange="-20 20"/>
+        
+        <!-- gripper drive joint (other gripper joints follow via equality constraints) -->
+        <position ctrllimited="true" ctrlrange="0 0.85" joint="drive_joint" kp="200" user="1" forcelimited="true" forcerange="-50 50"/>
+    </actuator>
+
+    <keyframe>
+        <!-- Arm (6 joints) + Gripper (6 joints: drive_joint + 5 mimic joints) = 12 qpos -->
+        <!-- Box pose -->
+        <!-- Total: 12 + 7 = 19 qpos -->
+        <key qpos="0.0 -0.78 -0.78 0.0 1.57 0.0  0.0 0.0 0.0 0.0 0.0 0.0  0.2 0.5 0.05 1 0 0 0"/>
+    </keyframe>
+</mujoco>

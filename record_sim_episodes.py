@@ -5,7 +5,9 @@ import argparse
 import matplotlib.pyplot as plt
 import h5py
 
-from constants import PUPPET_GRIPPER_POSITION_NORMALIZE_FN, SIM_TASK_CONFIGS
+from constants import SIM_TASK_CONFIGS
+from constants import PUPPET_GRIPPER_POSITION_NORMALIZE_FN
+from constants import XARM6_GRIPPER_POSITION_NORMALIZE_FN
 from ee_sim_env import make_ee_sim_env
 from sim_env import make_sim_env, BOX_POSE
 from scripted_policy import PickAndTransferPolicy, InsertionPolicy
@@ -13,20 +15,19 @@ from scripted_policy import PickAndTransferPolicy, InsertionPolicy
 import IPython
 e = IPython.embed
 
+try:
+    import mujoco.viewer
+    VIEWER_AVAILABLE = True
+except ImportError:
+    VIEWER_AVAILABLE = False
+
 
 def main(args):
-    """
-    Generate demonstration data in simulation.
-    First rollout the policy (defined in ee space) in ee_sim_env. Obtain the joint trajectory.
-    Replace the gripper joint positions with the commanded joint position.
-    Replay this joint trajectory (as action sequence) in sim_env, and record all observations.
-    Save this episode of data, and continue to next episode of data collection.
-    """
-
     task_name = args['task_name']
     dataset_dir = args['dataset_dir']
     num_episodes = args['num_episodes']
     onscreen_render = args['onscreen_render']
+    use_viewer = args.get('use_viewer', False)
     inject_noise = False
     render_cam_name = 'angle'
 
@@ -39,6 +40,8 @@ def main(args):
         policy_cls = PickAndTransferPolicy
     elif task_name == 'sim_insertion_scripted':
         policy_cls = InsertionPolicy
+    elif task_name == 'xarm6_transfer_cube_scripted':
+        policy_cls = PickAndTransferPolicy
     else:
         raise NotImplementedError
 
@@ -52,18 +55,42 @@ def main(args):
         episode = [ts]
         policy = policy_cls(inject_noise)
         # setup plotting
-        if onscreen_render:
+        viewer_context = None
+        if onscreen_render and use_viewer and VIEWER_AVAILABLE:
+            # 使用 mujoco viewer（可以用鼠标调节视角）
+            try:
+                viewer_context = mujoco.viewer.launch_passive(
+                    env.physics.model, 
+                    env.physics.data
+                )
+            except:
+                # 如果上面的方式不行，尝试访问底层对象
+                viewer_context = mujoco.viewer.launch_passive(
+                    env.physics.model._model, 
+                    env.physics.data._data
+                )
+        
+        if onscreen_render and not (use_viewer and VIEWER_AVAILABLE):
             ax = plt.subplot()
             plt_img = ax.imshow(ts.observation['images'][render_cam_name])
             plt.ion()
+        
         for step in range(episode_len):
             action = policy(ts)
             ts = env.step(action)
             episode.append(ts)
             if onscreen_render:
-                plt_img.set_data(ts.observation['images'][render_cam_name])
-                plt.pause(0.002)
-        plt.close()
+                if viewer_context is not None:
+                    viewer_context.sync()
+                    time.sleep(0.01)
+                else:
+                    plt_img.set_data(ts.observation['images'][render_cam_name])
+                    plt.pause(0.002)
+        
+        if viewer_context is not None:
+            viewer_context.close()
+        if onscreen_render and viewer_context is None:
+            plt.close()
 
         episode_return = np.sum([ts.reward for ts in episode[1:]])
         episode_max_reward = np.max([ts.reward for ts in episode[1:]])
@@ -76,10 +103,18 @@ def main(args):
         # replace gripper pose with gripper control
         gripper_ctrl_traj = [ts.observation['gripper_ctrl'] for ts in episode]
         for joint, ctrl in zip(joint_traj, gripper_ctrl_traj):
-            left_ctrl = PUPPET_GRIPPER_POSITION_NORMALIZE_FN(ctrl[0])
-            right_ctrl = PUPPET_GRIPPER_POSITION_NORMALIZE_FN(ctrl[2])
-            joint[6] = left_ctrl
-            joint[6+7] = right_ctrl
+            if 'xarm6' in task_name:
+                # xarm6: ctrl[0] is left drive_joint, ctrl[1] is right drive_joint
+                left_ctrl = XARM6_GRIPPER_POSITION_NORMALIZE_FN(ctrl[0])
+                right_ctrl = XARM6_GRIPPER_POSITION_NORMALIZE_FN(ctrl[1])
+                joint[6] = left_ctrl
+                joint[6+7] = right_ctrl
+            else:
+                # viperx: ctrl[0] is left_finger, ctrl[2] is right_finger
+                left_ctrl = PUPPET_GRIPPER_POSITION_NORMALIZE_FN(ctrl[0])
+                right_ctrl = PUPPET_GRIPPER_POSITION_NORMALIZE_FN(ctrl[2])
+                joint[6] = left_ctrl
+                joint[6+7] = right_ctrl
 
         subtask_info = episode[0].observation['env_state'].copy() # box pose at step 0
 
@@ -96,17 +131,40 @@ def main(args):
 
         episode_replay = [ts]
         # setup plotting
-        if onscreen_render:
+        replay_viewer_context = None
+        if onscreen_render and use_viewer and VIEWER_AVAILABLE:
+            try:
+                replay_viewer_context = mujoco.viewer.launch_passive(
+                    env.physics.model,
+                    env.physics.data
+                )
+            except:
+                replay_viewer_context = mujoco.viewer.launch_passive(
+                    env.physics.model._model,
+                    env.physics.data._data
+                )
+        
+        if onscreen_render and not (use_viewer and VIEWER_AVAILABLE):
             ax = plt.subplot()
             plt_img = ax.imshow(ts.observation['images'][render_cam_name])
             plt.ion()
+        
         for t in range(len(joint_traj)): # note: this will increase episode length by 1
             action = joint_traj[t]
             ts = env.step(action)
             episode_replay.append(ts)
             if onscreen_render:
-                plt_img.set_data(ts.observation['images'][render_cam_name])
-                plt.pause(0.02)
+                if replay_viewer_context is not None:
+                    replay_viewer_context.sync()
+                    time.sleep(0.01)
+                else:
+                    plt_img.set_data(ts.observation['images'][render_cam_name])
+                    plt.pause(0.02)
+        
+        if replay_viewer_context is not None:
+            replay_viewer_context.close()
+        if onscreen_render and replay_viewer_context is None:
+            plt.close()
 
         episode_return = np.sum([ts.reward for ts in episode_replay[1:]])
         episode_max_reward = np.max([ts.reward for ts in episode_replay[1:]])
@@ -117,13 +175,11 @@ def main(args):
             success.append(0)
             print(f"{episode_idx=} Failed")
 
-        plt.close()
-
         """
         For each timestep:
         observations
         - images
-            - each_cam_name     (480, 640, 3) 'uint8'
+        - each_cam_name         (480, 640, 3) 'uint8'
         - qpos                  (14,)         'float64'
         - qvel                  (14,)         'float64'
 
@@ -184,6 +240,7 @@ if __name__ == '__main__':
     parser.add_argument('--dataset_dir', action='store', type=str, help='dataset saving dir', required=True)
     parser.add_argument('--num_episodes', action='store', type=int, help='num_episodes', required=False)
     parser.add_argument('--onscreen_render', action='store_true')
+    parser.add_argument('--use_viewer', action='store_true')
     
     main(vars(parser.parse_args()))
 
