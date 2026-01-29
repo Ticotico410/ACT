@@ -25,15 +25,15 @@ def make_ee_sim_env(task_name):
                         right_arm_pose (7),            # position and quaternion for end effector
                         right_gripper_positions (1),]  # normalized gripper position (0: close, 1: open)
 
-    Observation space: {"qpos": Concat[ left_arm_qpos (6),         # absolute joint position
+    Observation space: {"qpos": Concat[ left_arm_qpos (6),          # absolute joint position
                                         left_gripper_position (1),  # normalized gripper position (0: close, 1: open)
                                         right_arm_qpos (6),         # absolute joint position
                                         right_gripper_qpos (1)]     # normalized gripper position (0: close, 1: open)
-                        "qvel": Concat[ left_arm_qvel (6),         # absolute joint velocity (rad)
+                        "qvel": Concat[ left_arm_qvel (6),          # absolute joint velocity (rad)
                                         left_gripper_velocity (1),  # normalized gripper velocity (pos: opening, neg: closing)
                                         right_arm_qvel (6),         # absolute joint velocity (rad)
                                         right_gripper_qvel (1)]     # normalized gripper velocity (pos: opening, neg: closing)
-                        "images": {"main": (480x640x3)}        # h, w, c, dtype='uint8'
+                        "images": {"main": (480x640x3)}             # h, w, c, dtype='uint8'
     """
     if 'sim_transfer_cube' in task_name:
         xml_path = os.path.join(XML_DIR, f'bimanual_viperx_ee_transfer_cube.xml')
@@ -138,6 +138,7 @@ class BimanualViperXEETask(base.Task):
         obs['images']['top'] = physics.render(height=480, width=640, camera_id='top')
         obs['images']['angle'] = physics.render(height=480, width=640, camera_id='angle')
         obs['images']['vis'] = physics.render(height=480, width=640, camera_id='front_close')
+        
         # used in scripted policy to obtain starting pose
         obs['mocap_pose_left'] = np.concatenate([physics.data.mocap_pos[0], physics.data.mocap_quat[0]]).copy()
         obs['mocap_pose_right'] = np.concatenate([physics.data.mocap_pos[1], physics.data.mocap_quat[1]]).copy()

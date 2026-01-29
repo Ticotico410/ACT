@@ -20,7 +20,7 @@ class BasePolicy:
         raise NotImplementedError
 
     @staticmethod
-    def interpolate(curr_waypoint, next_waypoint, t):
+    def interpolate(curr_waypoint: dict, next_waypoint: dict, t):
         t_frac = (t - curr_waypoint["t"]) / (next_waypoint["t"] - curr_waypoint["t"])
         curr_xyz = curr_waypoint['xyz']
         curr_quat = curr_waypoint['quat']
