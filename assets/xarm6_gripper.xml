@@ -70,7 +70,7 @@
 
 
                 <!-- Gripper base -->
-                <body name="xarm_gripper_base_link" pos="0 0 0" quat="1 0 0 0">
+                <body name="gripper_base_link" pos="0 0 0" quat="1 0 0 0">
                   <inertial pos="-0.00065489 -0.0018497 0.048028"
                             quat="0.0503981 0.700898 0.0510734 0.709643"
                             mass="0.54156"
