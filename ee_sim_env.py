@@ -126,7 +126,7 @@ class BimanualViperXEETask(base.Task):
 
     @staticmethod
     def get_env_state(physics):
-        raise NotImplementedError
+        pass
 
     def get_observation(self, physics):
         # note: it is important to do .copy()
@@ -148,7 +148,7 @@ class BimanualViperXEETask(base.Task):
         return obs
 
     def get_reward(self, physics):
-        raise NotImplementedError
+        pass
 
 
 class TransferCubeEETask(BimanualViperXEETask):
@@ -266,3 +266,17 @@ class InsertionEETask(BimanualViperXEETask):
         if pin_touched: # successful insertion
             reward = 4
         return reward
+
+def print_ee_mocap_pose():
+    # Make an EE sim env and reset to the same start_pose, then print EE pose
+    env = make_ee_sim_env('sim_transfer_cube')
+    env.reset()
+    physics = env._physics
+    print(f"left gripper pose: {physics.named.data.xpos['vx300s_left/gripper_link']}")
+    print(f"left gripper quat: {physics.named.data.xquat['vx300s_left/gripper_link']}")
+    print(f"right gripper pose: {physics.named.data.xpos['vx300s_right/gripper_link']}")
+    print(f"right gripper quat: {physics.named.data.xquat['vx300s_right/gripper_link']}")
+   
+
+if __name__ == '__main__':
+    print_ee_mocap_pose()

@@ -64,6 +64,6 @@ def visualize_xml(xml_filename, use_viewer=True):
 
 if __name__ == '__main__':
     #xml_filename = 'bimanual_viperx_ee_transfer_cube.xml'
-    xml_filename = 'bimanual_viperx_ee_insertion.xml'
+    xml_filename = 'bimanual_viperx_ee_transfer_cube.xml'
     use_viewer = True
     visualize_xml(xml_filename, use_viewer=use_viewer)
