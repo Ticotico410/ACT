@@ -1,0 +1,30 @@
+<mujocoinclude>
+    <compiler angle="radian" inertiafromgeom="auto" inertiagrouprange="4 5" meshdir="xarm_description/meshes/xarm6/visual"/>
+    
+    <!-- <option timestep="0.002" iterations="50" tolerance="1e-10" gravity="0.0 0.0 -9.81">
+    </option> -->
+
+    <asset>
+        <!-- XArm6 meshes -->
+        <mesh name="link_base" file="link_base.stl"/>
+        <mesh name="link1" file="link1.stl"/>
+        <mesh name="link2" file="link2.stl"/>
+        <mesh name="link3" file="link3.stl"/>
+        <mesh name="link4" file="link4.stl"/>
+        <mesh name="link5" file="link5.stl"/>
+        <mesh name="link6" file="link6.stl"/>
+        
+        <!-- Gripper meshes -->
+        <mesh name="gripper_base_mesh" file="../../../../xarm_gripper/meshes/base_link.STL" scale="1 1 1"/>
+        <mesh name="left_outer_knuckle_mesh" file="../../../../xarm_gripper/meshes/left_outer_knuckle.STL" scale="1 1 1"/>
+        <mesh name="left_finger_mesh" file="../../../../xarm_gripper/meshes/left_finger.STL" scale="1 1 1"/>
+        <mesh name="left_inner_knuckle_mesh" file="../../../../xarm_gripper/meshes/left_inner_knuckle.STL" scale="1 1 1"/>
+        <mesh name="right_outer_knuckle_mesh" file="../../../../xarm_gripper/meshes/right_outer_knuckle.STL" scale="1 1 1"/>
+        <mesh name="right_finger_mesh" file="../../../../xarm_gripper/meshes/right_finger.STL" scale="1 1 1"/>
+        <mesh name="right_inner_knuckle_mesh" file="../../../../xarm_gripper/meshes/right_inner_knuckle.STL" scale="1 1 1"/>
+        
+        <!-- Tabletop mesh -->
+        <mesh file="../../../../tabletop.stl" name="tabletop" scale="0.001 0.001 0.001"/>
+    </asset>
+
+</mujocoinclude>

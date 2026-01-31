@@ -1,9 +1,6 @@
 <mujocoinclude>
 <!--    <option timestep='0.0025' iterations="50" tolerance="1e-10" solver="Newton" jacobian="dense" cone="elliptic"/>-->
 
-    <asset>
-        <mesh file="tabletop.stl" name="tabletop" scale="0.001 0.001 0.001"/>
-    </asset>
 
     <visual>
         <map fogstart="1.5" fogend="5" force="0.1" znear="0.1"/>
@@ -29,7 +26,7 @@
         <camera name="right_pillar" pos="0.5 0.2 0.6" fovy="78" mode="targetbody" target="table"/>
         <camera name="top" pos="0 0.6 0.8" fovy="78" mode="targetbody" target="table"/>
         <camera name="angle" pos="0 0 0.6" fovy="78" mode="targetbody" target="table"/>
-        <camera name="front_close" pos="0 0.2 0.4" fovy="78" mode="targetbody" target="vx300s_left/camera_focus"/>
+        <camera name="front_close" pos="0 0.2 0.4" fovy="78" mode="targetbody" target="link6"/>
 
     </worldbody>
 
