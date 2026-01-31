@@ -60,8 +60,8 @@ class XArm6EETask(base.Task):
         # (1) make an ee_sim env and reset to the same start_pose
         # (2) get env._physics.named.data.xpos['gripper_base_link']
         #     get env._physics.named.data.xquat['gripper_base_link']
-        np.copyto(physics.data.mocap_pos[0], [0.20, 0.50, 0.35])
-        np.copyto(physics.data.mocap_quat[0], [1, 0, 0, 0])
+        np.copyto(physics.data.mocap_pos[0], [0.22734068, 0.49999763, 0.5206962])
+        np.copyto(physics.data.mocap_quat[0], [1, 0, 0, 0]) # [ 3.99999997e-04  3.67235628e-06 -9.99999920e-01 -2.11985174e-06]
 
         # reset gripper control
         close_gripper_control = np.array([PUPPET_GRIPPER_POSITION_CLOSE])
@@ -89,7 +89,7 @@ class XArm6EETask(base.Task):
 
     @staticmethod
     def get_env_state(physics):
-        raise NotImplementedError
+        pass
 
     def get_observation(self, physics):
         # note: it is important to do .copy()
@@ -110,7 +110,7 @@ class XArm6EETask(base.Task):
         return obs
 
     def get_reward(self, physics):
-        raise NotImplementedError
+        pass
 
 
 class PickCubeEETask(XArm6EETask):

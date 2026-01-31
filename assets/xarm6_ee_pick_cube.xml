@@ -9,11 +9,10 @@
 
     <worldbody>
         <include file="xarm6_gripper.xml" />
-        <!-- <body mocap="true" name="mocap" pos="0.20 0.50 0.35"> -->
-        <body mocap="true" name="mocap" pos="0.22734068 0.49999763 0.5206962" quat="1 0 0 0">
-            <site pos="0 0 0" size="0.003 0.003 0.03" type="box" name="mocap_site1" rgba="1 0 0 1"/>
-            <site pos="0 0 0" size="0.003 0.03 0.003" type="box" name="mocap_site2" rgba="1 0 0 1"/>
-            <site pos="0 0 0" size="0.03 0.003 0.003" type="box" name="mocap_site3" rgba="1 0 0 1"/>
+        <body mocap="true" name="mocap" pos="0.20 0.50 0.35">
+            <site pos="0 0 0" size="0.004 0.004 0.004" type="box" name="mocap_site1" rgba="1 0 0 1"/>
+            <site pos="0 0 0" size="0.004 0.004 0.004" type="box" name="mocap_site2" rgba="1 0 0 1"/>
+            <site pos="0 0 0" size="0.004 0.004 0.004" type="box" name="mocap_site3" rgba="1 0 0 1"/>
         </body>
 
         <body name="red_box" pos="0.2 0.5 0.05">
