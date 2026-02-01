@@ -1,173 +1,134 @@
 import numpy as np
-import collections
-import os
+import matplotlib.pyplot as plt
+from pyquaternion import Quaternion
 
-from constants import DT, XML_DIR, START_ARM_POSE
-from constants import PUPPET_GRIPPER_POSITION_CLOSE
-from constants import PUPPET_GRIPPER_POSITION_UNNORMALIZE_FN
-from constants import PUPPET_GRIPPER_POSITION_NORMALIZE_FN
-from constants import PUPPET_GRIPPER_VELOCITY_NORMALIZE_FN
-
-from utils import sample_box_pose, sample_insertion_pose
-from dm_control import mujoco
-from dm_control.rl import control
-from dm_control.suite import base
+from constants import SIM_TASK_CONFIGS
+from ee_sim_env import make_ee_sim_env
 
 import IPython
 e = IPython.embed
 
 
-def make_ee_sim_env(task_name):
-    """
-    Environment for simulated robot bi-manual manipulation, with end-effector control.
-    Action space:      [arm_pose (7),             # position and quaternion for end effector
-                        gripper_positions (1),]   # normalized gripper position (0: close, 1: open)
+class BasePolicy:
+    def __init__(self, inject_noise=False):
+        self.inject_noise = inject_noise
+        self.step_count = 0
+        self.trajectory = None
 
-    Observation space: {"qpos": Concat[ arm_qpos (6),          # absolute joint position
-                                        gripper_position (1)]  # normalized gripper position (0: close, 1: open)
-                        "qvel": Concat[ arm_qvel (6),          # absolute joint velocity (rad)
-                                        gripper_velocity (1)]  # normalized gripper velocity (pos: opening, neg: closing)
-                        "images": {"main": (480x640x3)}        # h, w, c, dtype='uint8'
-    """
+    def generate_trajectory(self, ts_first):
+        raise NotImplementedError
+
+    @staticmethod
+    def interpolate(curr_waypoint: dict, next_waypoint: dict, t):
+        t_frac = (t - curr_waypoint["t"]) / (next_waypoint["t"] - curr_waypoint["t"])
+        curr_xyz = curr_waypoint['xyz']
+        curr_quat = curr_waypoint['quat']
+        curr_grip = curr_waypoint['gripper']
+        next_xyz = next_waypoint['xyz']
+        next_quat = next_waypoint['quat']
+        next_grip = next_waypoint['gripper']
+        xyz = curr_xyz + (next_xyz - curr_xyz) * t_frac
+        quat = curr_quat + (next_quat - curr_quat) * t_frac
+        gripper = curr_grip + (next_grip - curr_grip) * t_frac
+        return xyz, quat, gripper
+
+    def __call__(self, ts):
+        # generate trajectory at first timestep, then open-loop execution
+        if self.step_count == 0:
+            self.generate_trajectory(ts)
+
+        # obtain left and right waypoints
+        if self.trajectory[0]['t'] == self.step_count:
+            self.curr_waypoint = self.trajectory.pop(0)
+        next_waypoint = self.trajectory[0]
+
+        # interpolate between waypoints to obtain current pose and gripper command
+        xyz, quat, gripper = self.interpolate(self.curr_waypoint, next_waypoint, self.step_count)
+
+        # Inject noise
+        if self.inject_noise:
+            scale = 0.01
+            xyz = xyz + np.random.uniform(-scale, scale, xyz.shape)
+
+        action = np.concatenate([xyz, quat, [gripper]])
+
+        self.step_count += 1
+        return action
+
+
+class PickPolicy(BasePolicy):
+
+    def generate_trajectory(self, ts_first):
+        init_mocap_pose = ts_first.observation['mocap_pose']
+
+        box_info = np.array(ts_first.observation['env_state'])
+        box_xyz = box_info[:3]
+        box_quat = box_info[3:]
+        # print(f"Generate trajectory for {box_xyz=}")
+
+        gripper_pick_quat = Quaternion(init_mocap_pose[3:])
+        gripper_pick_quat = gripper_pick_quat * Quaternion(axis=[0.0, 1.0, 0.0], degrees=-60)
+
+        # Original trajectory (commented out):
+        # self.trajectory = [
+        #     {"t": 0, "xyz": init_mocap_pose[:3], "quat": init_mocap_pose[3:], "gripper": 0}, # sleep
+        #     {"t": 90, "xyz": box_xyz + np.array([0, 0, 0.08]), "quat": gripper_pick_quat.elements, "gripper": 1},     # approach the cube
+        #     {"t": 130, "xyz": box_xyz + np.array([0, 0, -0.015]), "quat": gripper_pick_quat.elements, "gripper": 1},  # go down
+        #     {"t": 170, "xyz": box_xyz + np.array([0, 0, -0.015]), "quat": gripper_pick_quat.elements, "gripper": 0},  # close gripper
+        #     {"t": 310, "xyz": box_xyz + np.array([0, 0, 0.015]), "quat": gripper_pick_quat.elements, "gripper": 1},   # go up
+        #     {"t": 360, "xyz": box_xyz + np.array([0.1, 0, 0]), "quat": gripper_pick_quat.elements, "gripper": 1},     # move to right
+        #     {"t": 400, "xyz": box_xyz + np.array([0.1, 0, 0]), "quat": gripper_pick_quat.elements, "gripper": 1},     # stay
+        # ]
+        
+        self.trajectory = [
+            {"t": 0, "xyz": init_mocap_pose[:3], "quat": init_mocap_pose[3:], "gripper": 0}, # sleep
+            {"t": 90, "xyz": box_xyz + np.array([0, 0, 0.08]), "quat": gripper_pick_quat.elements, "gripper": 1},     # approach the cube
+            {"t": 130, "xyz": init_mocap_pose[:3], "quat": init_mocap_pose[3:], "gripper": 0},  # sleep
+            {"t": 170, "xyz": init_mocap_pose[:3], "quat": init_mocap_pose[3:], "gripper": 0},  # sleep
+            {"t": 310, "xyz": init_mocap_pose[:3], "quat": init_mocap_pose[3:], "gripper": 0},   # sleep
+            {"t": 360, "xyz": init_mocap_pose[:3], "quat": init_mocap_pose[3:], "gripper": 0},     # sleep
+            {"t": 400, "xyz": init_mocap_pose[:3], "quat": init_mocap_pose[3:], "gripper": 0},     # sleep
+        ]
+
+
+def test_policy(task_name):
+    # example rolling out pick_and_transfer policy
+    onscreen_render = True
+    inject_noise = False
+
+    # setup the environment
+    episode_len = SIM_TASK_CONFIGS[task_name]['episode_len']
     if 'sim_pick_cube' in task_name:
-        xml_path = os.path.join(XML_DIR, f'xarm6_ee_pick_cube.xml')
-        physics = mujoco.Physics.from_xml_path(xml_path)
-        task = PickCubeEETask(random=False)
-        env = control.Environment(physics, task, time_limit=20, control_timestep=DT, n_sub_steps=None, flat_observation=False)
+        env = make_ee_sim_env('sim_pick_cube')
     else:
         raise NotImplementedError
-    return env
 
-class XArm6EETask(base.Task):
-    def __init__(self, random=None):
-        super().__init__(random=random)
+    for episode_idx in range(2):
+        ts = env.reset()
+        episode = [ts]
+        if onscreen_render:
+            ax = plt.subplot()
+            plt_img = ax.imshow(ts.observation['images']['angle'])
+            plt.ion()
 
-    def before_step(self, action, physics):
-        # set mocap position and qua
-        np.copyto(physics.data.mocap_pos[0], action[:3])
-        np.copyto(physics.data.mocap_quat[0], action[3:7])
+        policy = PickPolicy(inject_noise)
+        for step in range(episode_len):
+            action = policy(ts)
+            ts = env.step(action)
+            episode.append(ts)
+            if onscreen_render:
+                plt_img.set_data(ts.observation['images']['angle'])
+                plt.pause(0.02)
+        plt.close()
 
-        # set gripper
-        g_ctrl = PUPPET_GRIPPER_POSITION_UNNORMALIZE_FN(action[7])
-        np.copyto(physics.data.ctrl, np.array([g_ctrl]))
+        episode_return = np.sum([ts.reward for ts in episode[1:]])
+        if episode_return > 0:
+            print(f"{episode_idx=} Successful, {episode_return=}")
+        else:
+            print(f"{episode_idx=} Failed")
 
-    def initialize_robots(self, physics):
-        # reset joint position
-        physics.named.data.qpos[:7] = START_ARM_POSE
-
-        # reset mocap to align with end effector
-        # to obtain these numbers:
-        # (1) make an ee_sim env and reset to the same start_pose
-        # (2) get env._physics.named.data.xpos['gripper_base_link']
-        #     get env._physics.named.data.xquat['gripper_base_link']
-        np.copyto(physics.data.mocap_pos[0], [0.22734068, 0.49999763, 0.5206962])
-        np.copyto(physics.data.mocap_quat[0], [1, 0, 0, 0]) # [ 3.99999997e-04  3.67235628e-06 -9.99999920e-01 -2.11985174e-06]
-
-        # reset gripper control
-        close_gripper_control = np.array([PUPPET_GRIPPER_POSITION_CLOSE])
-        np.copyto(physics.data.ctrl, close_gripper_control)
-
-    def initialize_episode(self, physics):
-        """Sets the state of the environment at the start of each episode."""
-        super().initialize_episode(physics)
-
-    @staticmethod
-    def get_qpos(physics):
-        qpos_raw = physics.data.qpos.copy()
-        qpos_raw = qpos_raw[:7]
-        arm_qpos = qpos_raw[:6]
-        gripper_qpos = [PUPPET_GRIPPER_POSITION_NORMALIZE_FN(qpos_raw[6])]
-        return np.concatenate([arm_qpos, gripper_qpos])
-
-    @staticmethod
-    def get_qvel(physics):
-        qvel_raw = physics.data.qvel.copy()
-        qvel_raw = qvel_raw[:7]
-        arm_qvel = qvel_raw[:6]
-        gripper_qvel = [PUPPET_GRIPPER_VELOCITY_NORMALIZE_FN(qvel_raw[6])]
-        return np.concatenate([arm_qvel, gripper_qvel])
-
-    @staticmethod
-    def get_env_state(physics):
-        pass
-
-    def get_observation(self, physics):
-        # note: it is important to do .copy()
-        obs = collections.OrderedDict()
-        obs['qpos'] = self.get_qpos(physics)
-        obs['qvel'] = self.get_qvel(physics)
-        obs['env_state'] = self.get_env_state(physics)
-        obs['images'] = dict()
-        obs['images']['top'] = physics.render(height=480, width=640, camera_id='top')
-        obs['images']['angle'] = physics.render(height=480, width=640, camera_id='angle')
-        obs['images']['vis'] = physics.render(height=480, width=640, camera_id='front_close')
-
-        # used in scripted policy to obtain starting pose
-        obs['mocap_pose'] = np.concatenate([physics.data.mocap_pos[0], physics.data.mocap_quat[0]]).copy()
-
-        # used when replaying joint trajectory
-        obs['gripper_ctrl'] = physics.data.ctrl.copy()
-        return obs
-
-    def get_reward(self, physics):
-        pass
-
-
-class PickCubeEETask(XArm6EETask):
-    def __init__(self, random=None):
-        super().__init__(random=random)
-        self.max_reward = 2
-
-    def initialize_episode(self, physics):
-        """Sets the state of the environment at the start of each episode."""
-        self.initialize_robots(physics)
-        # randomize box position
-        cube_pose = sample_box_pose()
-        box_start_idx = physics.model.name2id('red_box_joint', 'joint')
-        np.copyto(physics.data.qpos[box_start_idx : box_start_idx + 7], cube_pose)
-        # print(f"randomized cube position to {cube_position}")
-
-        super().initialize_episode(physics)
-
-    @staticmethod
-    def get_env_state(physics):
-        env_state = physics.data.qpos.copy()[16:]
-        return env_state
-
-    def get_reward(self, physics):
-        # return whether gripper is holding the box
-        all_contact_pairs = []
-        for i_contact in range(physics.data.ncon):
-            id_geom_1 = physics.data.contact[i_contact].geom1
-            id_geom_2 = physics.data.contact[i_contact].geom2
-            name_geom_1 = physics.model.id2name(id_geom_1, 'geom')
-            name_geom_2 = physics.model.id2name(id_geom_2, 'geom')
-            contact_pair = (name_geom_1, name_geom_2)
-            all_contact_pairs.append(contact_pair)
-
-        def _touches(geom_name):
-            return (("red_box", geom_name) in all_contact_pairs) or ((geom_name, "red_box") in all_contact_pairs)
-
-        touch_gripper = _touches("right_finger_mesh") or _touches("left_finger_mesh")
-        touch_table = ("red_box", "table") in all_contact_pairs
-
-        reward = 0
-        if touch_gripper:
-            reward = 1
-        if touch_gripper and not touch_table:  # lifted
-            reward = 2
-        return reward
-
-
-def print_ee_mocap_pose():
-    # Make an EE sim env and reset to the same start_pose, then print EE pose
-    env = make_ee_sim_env('sim_pick_cube')
-    env.reset()
-    physics = env._physics
-    print(physics.named.data.xpos['gripper_base_link'])
-    print(physics.named.data.xquat['gripper_base_link'])
-    # [0.22734068 0.49999763 0.5206962 ]
-    # [3.99999997e-04  3.67235628e-06 -9.99999920e-01 -2.11985174e-06]
 
 if __name__ == '__main__':
-    print_ee_mocap_pose()
+    test_task_name = 'sim_pick_cube_scripted'
+    test_policy(test_task_name)
+
