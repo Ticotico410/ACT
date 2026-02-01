@@ -60,11 +60,13 @@ class PickPolicy(BasePolicy):
 
     def generate_trajectory(self, ts_first):
         init_mocap_pose = ts_first.observation['mocap_pose']
-
+        print(f"init_mocap_pose: {init_mocap_pose}")
         box_info = np.array(ts_first.observation['env_state'])
+        print(f"box_info: {box_info}")
         box_xyz = box_info[:3]
+        print(f"box_xyz: {box_xyz}")
         box_quat = box_info[3:]
-        # print(f"Generate trajectory for {box_xyz=}")
+        print(f"box_quat: {box_quat}")
 
         gripper_pick_quat = Quaternion(init_mocap_pose[3:])
         gripper_pick_quat = gripper_pick_quat * Quaternion(axis=[0.0, 1.0, 0.0], degrees=-60)
@@ -82,7 +84,7 @@ class PickPolicy(BasePolicy):
         
         self.trajectory = [
             {"t": 0, "xyz": init_mocap_pose[:3], "quat": init_mocap_pose[3:], "gripper": 0}, # sleep
-            {"t": 90, "xyz": box_xyz + np.array([0, 0, 0.08]), "quat": gripper_pick_quat.elements, "gripper": 1},     # approach the cube
+            {"t": 90, "xyz": box_xyz + np.array([0, 0, 0.08]), "quat": gripper_pick_quat.elements, "gripper": 0},     # approach the cube
             {"t": 130, "xyz": init_mocap_pose[:3], "quat": init_mocap_pose[3:], "gripper": 0},  # sleep
             {"t": 170, "xyz": init_mocap_pose[:3], "quat": init_mocap_pose[3:], "gripper": 0},  # sleep
             {"t": 310, "xyz": init_mocap_pose[:3], "quat": init_mocap_pose[3:], "gripper": 0},   # sleep
