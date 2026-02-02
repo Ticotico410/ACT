@@ -60,7 +60,7 @@ class XArm6EETask(base.Task):
         # (1) make an ee_sim env and reset to the same start_pose
         # (2) get env._physics.named.data.xpos['gripper_base_link']
         #     get env._physics.named.data.xquat['gripper_base_link']
-        np.copyto(physics.data.mocap_pos[0], [0.22734068, 0.49999763, 0.5206962])
+        np.copyto(physics.data.mocap_pos[0], [0.3010574, 0.49999854, 0.43614391])
         np.copyto(physics.data.mocap_quat[0], [1, 0, 0, 0])
 
         # reset gripper control

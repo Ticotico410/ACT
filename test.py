@@ -62,22 +62,32 @@ class PickPolicy(BasePolicy):
         init_mocap_pose = ts_first.observation['mocap_pose']
         # print(f"init_mocap_pose: {init_mocap_pose}")
         box_info = np.array(ts_first.observation['env_state'])
-        # print(f"box_info: {box_info}")
+        print(f"box_info: {box_info}")
         box_xyz = box_info[:3]
         box_quat = box_info[3:]
 
         gripper_pick_quat = Quaternion(init_mocap_pose[3:])
-        gripper_pick_quat = gripper_pick_quat * Quaternion(axis=[0.0, 1.0, 0.0], degrees=-60)
+        gripper_pick_quat = gripper_pick_quat * Quaternion(axis=[0.0, 1.0, 0.0], degrees=-90)
 
         # Original trajectory (commented out):
+        # self.trajectory = [
+        #     {"t": 0, "xyz": init_mocap_pose[:3], "quat": init_mocap_pose[3:], "gripper": 0}, # sleep
+        #     {"t": 90, "xyz": box_xyz + np.array([0, 0, 0.08]), "quat": gripper_pick_quat.elements, "gripper": 1},     # approach the cube
+        #     {"t": 130, "xyz": box_xyz + np.array([0, 0, -0.015]), "quat": gripper_pick_quat.elements, "gripper": 1},  # go down
+        #     {"t": 170, "xyz": box_xyz + np.array([0, 0, -0.015]), "quat": gripper_pick_quat.elements, "gripper": 0},  # close gripper
+        #     {"t": 310, "xyz": box_xyz + np.array([0, 0, 0.015]), "quat": gripper_pick_quat.elements, "gripper": 1},   # go up
+        #     {"t": 360, "xyz": box_xyz + np.array([0.1, 0, 0]), "quat": gripper_pick_quat.elements, "gripper": 1},     # move to right
+        #     {"t": 400, "xyz": box_xyz + np.array([0.1, 0, 0]), "quat": gripper_pick_quat.elements, "gripper": 1},     # stay
+        # ]
+
         self.trajectory = [
             {"t": 0, "xyz": init_mocap_pose[:3], "quat": init_mocap_pose[3:], "gripper": 0}, # sleep
-            {"t": 90, "xyz": box_xyz + np.array([0, 0, 0.08]), "quat": gripper_pick_quat.elements, "gripper": 1},     # approach the cube
-            {"t": 130, "xyz": box_xyz + np.array([0, 0, -0.015]), "quat": gripper_pick_quat.elements, "gripper": 1},  # go down
-            {"t": 170, "xyz": box_xyz + np.array([0, 0, -0.015]), "quat": gripper_pick_quat.elements, "gripper": 0},  # close gripper
-            {"t": 310, "xyz": box_xyz + np.array([0, 0, 0.015]), "quat": gripper_pick_quat.elements, "gripper": 1},   # go up
-            {"t": 360, "xyz": box_xyz + np.array([0.1, 0, 0]), "quat": gripper_pick_quat.elements, "gripper": 1},     # move to right
-            {"t": 400, "xyz": box_xyz + np.array([0.1, 0, 0]), "quat": gripper_pick_quat.elements, "gripper": 1},     # stay
+            {"t": 90, "xyz": box_xyz + np.array([0, 0, 0.3]), "quat": gripper_pick_quat.elements, "gripper": 1},     # approach the cube
+            {"t": 130, "xyz": init_mocap_pose[:3], "quat": init_mocap_pose[3:], "gripper": 0},  # sleep
+            {"t": 170, "xyz": init_mocap_pose[:3], "quat": init_mocap_pose[3:], "gripper": 0},  # sleep
+            {"t": 310, "xyz": init_mocap_pose[:3], "quat": init_mocap_pose[3:], "gripper": 0},   # sleep
+            {"t": 360, "xyz": init_mocap_pose[:3], "quat": init_mocap_pose[3:], "gripper": 0},     # sleep
+            {"t": 400, "xyz": init_mocap_pose[:3], "quat": init_mocap_pose[3:], "gripper": 0},     # sleep
         ]
 
 def test_policy(task_name):

@@ -1,5 +1,5 @@
 <mujocoinclude>
-  <body name="link_base" pos="0.55 0.5 0" euler="0 0 3.1416">
+  <body name="link_base" pos="0.5 0.5 0" euler="0 0 3.1416">
     <geom quat="1 0 0 0" type="mesh" mesh="link_base" name="link_base" contype="0" conaffinity="0"/>
 
 
