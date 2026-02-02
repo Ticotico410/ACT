@@ -61,7 +61,7 @@ class XArm6EETask(base.Task):
         # (2) get env._physics.named.data.xpos['gripper_base_link']
         #     get env._physics.named.data.xquat['gripper_base_link']
         np.copyto(physics.data.mocap_pos[0], [0.22734068, 0.49999763, 0.5206962])
-        np.copyto(physics.data.mocap_quat[0], [1, 0, 0, 0]) # [ 3.99999997e-04  3.67235628e-06 -9.99999920e-01 -2.11985174e-06]
+        np.copyto(physics.data.mocap_quat[0], [1, 0, 0, 0])
 
         # reset gripper control
         close_gripper_control = np.array([PUPPET_GRIPPER_POSITION_CLOSE])
@@ -122,16 +122,16 @@ class PickCubeEETask(XArm6EETask):
         """Sets the state of the environment at the start of each episode."""
         self.initialize_robots(physics)
         # randomize box position
-        cube_pose = sample_box_pose()
+        # cube_pose = sample_box_pose()
         box_start_idx = physics.model.name2id('red_box_joint', 'joint')
-        np.copyto(physics.data.qpos[box_start_idx : box_start_idx + 7], cube_pose)
+        # np.copyto(physics.data.qpos[box_start_idx : box_start_idx + 7], cube_pose)
         # print(f"randomized cube position to {cube_position}")
 
         super().initialize_episode(physics)
 
     @staticmethod
     def get_env_state(physics):
-        env_state = physics.data.qpos.copy()[16:]
+        env_state = physics.data.qpos.copy()[12:]
         return env_state
 
     def get_reward(self, physics):

@@ -9,13 +9,14 @@
 
     <worldbody>
         <include file="xarm6_gripper.xml" />
-        <body mocap="true" name="mocap" pos="0.20 0.50 0.35">
-            <site pos="0 0 0" size="0.004 0.004 0.004" type="box" name="mocap_site1" rgba="1 0 0 1"/>
-            <site pos="0 0 0" size="0.004 0.004 0.004" type="box" name="mocap_site2" rgba="1 0 0 1"/>
-            <site pos="0 0 0" size="0.004 0.004 0.004" type="box" name="mocap_site3" rgba="1 0 0 1"/>
+        <!-- <body mocap="true" name="mocap" pos="0.20 0.50 0.35"> -->
+        <body mocap="true" name="mocap" pos="0.22734068 0.49999763 0.5206962">
+            <site pos="0 0 0" size="0.005 0.005 0.05" type="box" name="mocap_site1" rgba="1 0 0 1"/>
+            <site pos="0 0 0" size="0.005 0.05 0.005" type="box" name="mocap_site2" rgba="1 0 0 1"/>
+            <site pos="0 0 0" size="0.05 0.005 0.005" type="box" name="mocap_site3" rgba="1 0 0 1"/>
         </body>
 
-        <body name="red_box" pos="0.2 0.5 0.05">
+        <body name="red_box" pos="0.0 0.5 0.05">
             <joint name="red_box_joint" type="free" frictionloss="0.01" />
             <inertial pos="0 0 0" mass="0.05" diaginertia="0.002 0.002 0.002" />
             <geom condim="4" solimp="2 1 0.01" solref="0.01 1" friction="1 0.005 0.0001" pos="0 0 0" size="0.02 0.02 0.02" type="box" name="red_box" rgba="1 0 0 1" />

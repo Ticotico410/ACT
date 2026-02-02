@@ -113,7 +113,7 @@ class PickCubeTask(XArm6Task):
 
     @staticmethod
     def get_env_state(physics):
-        env_state = physics.data.qpos.copy()[7:]
+        env_state = physics.data.qpos.copy()[12:]
         return env_state
 
     def get_reward(self, physics):
