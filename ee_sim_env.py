@@ -133,13 +133,13 @@ class PickCubeEETask(XArm6EETask):
             contact_pair = (name_geom_1, name_geom_2)
             all_contact_pairs.append(contact_pair)
 
-        touch_right_gripper = ("red_box", "link6") in all_contact_pairs
+        touch_gripper = ("red_box", "link6") in all_contact_pairs
         touch_table = ("red_box", "table") in all_contact_pairs
 
         reward = 0
-        if touch_right_gripper:
+        if touch_gripper:
             reward = 1
-        if touch_right_gripper and not touch_table: # lifted
+        if touch_gripper and not touch_table: # lifted
             reward = 2
         return reward
 

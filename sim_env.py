@@ -44,12 +44,8 @@ class XArm6Task(base.Task):
 
     def before_step(self, action, physics):
         arm_action = action[:6]
-        normalized_gripper_action = action[6]
 
-        gripper_action = PUPPET_GRIPPER_POSITION_UNNORMALIZE_FN(normalized_gripper_action)
-        full_gripper_action = [gripper_action, -gripper_action]
-
-        env_action = np.concatenate([arm_action, full_gripper_action])
+        env_action = np.concatenate([arm_action])
         super().before_step(env_action, physics)
         return
 
@@ -61,15 +57,13 @@ class XArm6Task(base.Task):
     def get_qpos(physics):
         qpos_raw = physics.data.qpos.copy()
         arm_qpos = qpos_raw[:6]
-        gripper_qpos = [PUPPET_GRIPPER_POSITION_NORMALIZE_FN(qpos_raw[6])]
-        return np.concatenate([arm_qpos, gripper_qpos])
+        return arm_qpos
 
     @staticmethod
     def get_qvel(physics):
         qvel_raw = physics.data.qvel.copy()
         arm_qvel = qvel_raw[:6]
-        gripper_qvel = [PUPPET_GRIPPER_VELOCITY_NORMALIZE_FN(qvel_raw[6])]
-        return np.concatenate([arm_qvel, gripper_qvel])
+        return arm_qvel
 
     @staticmethod
     def get_env_state(physics):
@@ -104,7 +98,7 @@ class PickCubeTask(XArm6Task):
         # TODO Notice: this function does not randomize the env configuration. Instead, set BOX_POSE from outside
         # reset qpos, control and box position
         with physics.reset_context():
-            physics.named.data.qpos[:7] = START_ARM_POSE
+            physics.named.data.qpos[:6] = START_ARM_POSE
             np.copyto(physics.data.ctrl, START_ARM_POSE)
             assert BOX_POSE[0] is not None
             physics.named.data.qpos[-7:] = BOX_POSE[0]
@@ -113,7 +107,7 @@ class PickCubeTask(XArm6Task):
 
     @staticmethod
     def get_env_state(physics):
-        env_state = physics.data.qpos.copy()[12:]
+        env_state = physics.data.qpos.copy()[-7:]
         return env_state
 
     def get_reward(self, physics):
@@ -127,17 +121,14 @@ class PickCubeTask(XArm6Task):
             contact_pair = (name_geom_1, name_geom_2)
             all_contact_pairs.append(contact_pair)
 
-        def _touches(geom_name):
-            return (("red_box", geom_name) in all_contact_pairs) or ((geom_name, "red_box") in all_contact_pairs)
-
-        touch_gripper = _touches("right_finger_mesh") or _touches("left_finger_mesh")
+        touch_gripper = ("red_box", "link6") in all_contact_pairs
         touch_table = ("red_box", "table") in all_contact_pairs
 
         reward = 0
         if touch_gripper:
+            reward = 1
+        if touch_gripper and not touch_table: # lifted
             reward = 2
-        if touch_gripper and not touch_table:  # lifted
-            reward = 4
         return reward
 
 
@@ -147,8 +138,7 @@ def print_mujoco_info():
     physics = env._physics
     print(f"qpos: {physics.data.qpos}, shape: {physics.data.qpos.shape}")
     print(f"qvel: {physics.data.qvel}, shape: {physics.data.qvel.shape}")
-    print(f"drive joint idx: {physics.model.name2id('drive_joint', 'joint')}")
-
+    
 if __name__ == '__main__':
     BOX_POSE[0] = [0.2, 0.5, 0.05, 1, 0, 0, 0]
     print_mujoco_info()
