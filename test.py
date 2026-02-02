@@ -60,13 +60,11 @@ class PickPolicy(BasePolicy):
 
     def generate_trajectory(self, ts_first):
         init_mocap_pose = ts_first.observation['mocap_pose']
-        print(f"init_mocap_pose: {init_mocap_pose}")
+        # print(f"init_mocap_pose: {init_mocap_pose}")
         box_info = np.array(ts_first.observation['env_state'])
-        print(f"box_info: {box_info}")
+        # print(f"box_info: {box_info}")
         box_xyz = box_info[:3]
-        print(f"box_xyz: {box_xyz}")
         box_quat = box_info[3:]
-        print(f"box_quat: {box_quat}")
 
         gripper_pick_quat = Quaternion(init_mocap_pose[3:])
         gripper_pick_quat = gripper_pick_quat * Quaternion(axis=[0.0, 1.0, 0.0], degrees=-60)
@@ -94,9 +92,14 @@ def test_policy(task_name):
     else:
         raise NotImplementedError
 
-    for episode_idx in range(2):
+    for episode_idx in range(1):
         ts = env.reset()
         episode = [ts]
+        # Print initial qpos (ts=0)
+        print(f"\n=== Episode {episode_idx} ===")
+        print(f"ts=0 (after reset) qpos: {ts.observation['qpos']}")
+        print(f"ts=0 (after reset) qpos shape: {ts.observation['qpos'].shape}")
+        
         if onscreen_render:
             ax = plt.subplot()
             plt_img = ax.imshow(ts.observation['images']['angle'])
@@ -107,6 +110,10 @@ def test_policy(task_name):
             action = policy(ts)
             ts = env.step(action)
             episode.append(ts)
+            # Print qpos at ts=1 (after first step)
+            if step == 0:
+                print(f"ts=1 (after first step) qpos: {ts.observation['qpos']}")
+                print(f"ts=1 (after first step) qpos shape: {ts.observation['qpos'].shape}")
             if onscreen_render:
                 plt_img.set_data(ts.observation['images']['angle'])
                 plt.pause(0.02)
