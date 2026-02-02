@@ -63,6 +63,7 @@ def visualize_xml(xml_filename, use_viewer=True):
         plt.show()
 
 if __name__ == '__main__':
-    xml_filename = 'xarm6_ee_pick_cube.xml'
+    filename = 'xarm6_ee_pick_cube.xml'
+    # filename = 'xarm6_viz.xml'
     use_viewer = True
-    visualize_xml(xml_filename, use_viewer=use_viewer)
+    visualize_xml(filename, use_viewer=use_viewer)

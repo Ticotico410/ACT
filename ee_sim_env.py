@@ -67,9 +67,6 @@ class XArm6EETask(base.Task):
         close_gripper_control = np.array([PUPPET_GRIPPER_POSITION_CLOSE])
         np.copyto(physics.data.ctrl, close_gripper_control)
 
-        # forward physics to update positions after setting qpos
-        physics.forward()
-
     def initialize_episode(self, physics):
         """Sets the state of the environment at the start of each episode."""
         super().initialize_episode(physics)
@@ -172,5 +169,72 @@ def print_mujoco_info():
     print(f"qvel: {physics.data.qvel}, shape: {physics.data.qvel.shape}")
     print(f"drive joint idx: {physics.model.name2id('drive_joint', 'joint')}")
 
+def inertia_check():
+    # 加载环境
+    xml_path = os.path.join(XML_DIR, 'xarm6_ee_pick_cube.xml')
+    physics = mujoco.Physics.from_xml_path(xml_path)
+    
+    # 所有需要打印的 body 名称（包括 6 个 joint link 和 gripper 相关 body）
+    body_names = [
+        'link1',
+        'link2',
+        'link3',
+        'link4',
+        'link5',
+        'link6',
+        'gripper_base_link',
+        'left_outer_knuckle',
+        'left_finger',
+        'left_inner_knuckle',
+        'right_outer_knuckle',
+        'right_finger',
+        'right_inner_knuckle'
+    ]
+    
+    print("=" * 80)
+    print("Body Mass and Inertia Information")
+    print("=" * 80)
+    
+    for body_name in body_names:
+        try:
+            body_id = physics.model.name2id(body_name, 'body')
+            mass = physics.model.body_mass[body_id]
+            
+            # 获取惯性矩阵
+            # body_inertia 的形状是 (nbody, 3, 3)，每个 body 有一个 3x3 的惯性矩阵
+            inertia = physics.model.body_inertia[body_id]  # shape: (3, 3)
+            
+            print(f"\nBody: {body_name} (ID: {body_id})")
+            print(f"  Mass: {mass:.6f} kg")
+            print(f"  Inertia Matrix:")
+            print(inertia)
+            
+        except ValueError as e:
+            print(f"\nWarning: Body '{body_name}' not found in model: {e}")
+    
+    print("\n" + "=" * 80)
+
+def print_jnt_axis():
+    xml_path = os.path.join(XML_DIR, 'xarm6_ee_pick_cube.xml')
+    physics = mujoco.Physics.from_xml_path(xml_path)
+
+    print("=" * 80)
+    print("Joint Axis (physics.model.jnt_axis)")
+    print("=" * 80)
+
+    joint_names = getattr(physics.model, "joint_names", None)
+    if joint_names is None:
+        for j_id, axis in enumerate(physics.model.jnt_axis):
+            print(f"joint_id={j_id:3d} axis={axis}")
+        return
+
+    for j_id, j_name in enumerate(joint_names):
+        if not j_name:
+            continue
+        axis = physics.model.jnt_axis[j_id]
+        print(f"joint_name={j_name:30s} joint_id={j_id:3d} axis={axis}")
+
 if __name__ == '__main__':
-    print_mujoco_info()
+    # print_mujoco_info()
+    # inertia_check()
+    print_jnt_axis()

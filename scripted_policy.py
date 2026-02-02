@@ -62,7 +62,7 @@ class PickPolicy(BasePolicy):
         init_mocap_pose = ts_first.observation['mocap_pose']
         # print(f"init_mocap_pose: {init_mocap_pose}")
         box_info = np.array(ts_first.observation['env_state'])
-        print(f"box_info: {box_info}")
+        # print(f"box_info: {box_info}")
         box_xyz = box_info[:3]
         box_quat = box_info[3:]
 
@@ -81,8 +81,8 @@ class PickPolicy(BasePolicy):
         # ]
 
         self.trajectory = [
-            {"t": 0, "xyz": init_mocap_pose[:3], "quat": init_mocap_pose[3:], "gripper": 0}, # sleep
-            {"t": 100, "xyz": box_xyz + np.array([0, 0, 0.08]), "quat": gripper_pick_quat.elements, "gripper": 1}, # approach the cube
+            {"t":   0, "xyz": init_mocap_pose[:3], "quat": init_mocap_pose[3:], "gripper": 0}, # sleep
+            {"t": 100, "xyz": box_xyz + np.array([0, 0, 0.20]), "quat": gripper_pick_quat.elements, "gripper": 1}, # approach the cube
             {"t": 400, "xyz": init_mocap_pose[:3], "quat": init_mocap_pose[3:], "gripper": 0},     # sleep
         ]
 
@@ -95,6 +95,7 @@ def test_policy(task_name):
     episode_len = SIM_TASK_CONFIGS[task_name]['episode_len']
     if 'sim_pick_cube' in task_name:
         env = make_ee_sim_env('sim_pick_cube')
+        physics = env._physics
     else:
         raise NotImplementedError
 
@@ -102,29 +103,37 @@ def test_policy(task_name):
         ts = env.reset()
         episode = [ts]
         # Print initial qpos (ts=0)
-        print(f"\n=== Episode {episode_idx} ===")
-        print(f"reset qpos: {ts.observation['qpos']}")
-        print(f"reset qpos shape: {ts.observation['qpos'].shape}")
-        
+        # print(f"\n========== Episode {episode_idx} ==========")
+        # print(f"reset")
+        # print(f"qpos: {ts.observation['qpos']}")
+        # print(f"mocap pose: {ts.observation['mocap_pose']}")
+        # print(f"reset gripper base link pos: {physics.named.data.xpos['gripper_base_link']}\n")
+        # print(f"tracking error: {np.abs(ts.observation['mocap_pose'][2] - physics.named.data.xpos['gripper_base_link'][2])}\n")
+
         if onscreen_render:
             ax = plt.subplot()
             plt_img = ax.imshow(ts.observation['images']['angle'])
             plt.ion()
+            plt.show()
+            plt.pause(0.5)
 
         policy = PickPolicy(inject_noise)
         for step in range(episode_len):
             action = policy(ts)
             ts = env.step(action)
             episode.append(ts)
-            if step == 0:
-                print(f"ts=1 qpos: {ts.observation['qpos']}")
-                print(f"ts=1 qpos shape: {ts.observation['qpos'].shape}")
-            if step == 399:
-                print(f"ts=400 qpos: {ts.observation['qpos']}")
-                print(f"ts=400 qpos shape: {ts.observation['qpos'].shape}")
+            if step % 10 == 0:
+                print(f"ts={step}")
+                # print(f"qpos: {ts.observation['qpos']}")
+                # print(f"action: {action}")
+                # print(f"gripper base link pos: {physics.named.data.xpos['gripper_base_link']}\n")
+                err_x = np.abs(ts.observation['mocap_pose'][0] - physics.named.data.xpos['gripper_base_link'][0])
+                err_y = np.abs(ts.observation['mocap_pose'][1] - physics.named.data.xpos['gripper_base_link'][1])
+                err_z = np.abs(ts.observation['mocap_pose'][2] - physics.named.data.xpos['gripper_base_link'][2])
+                print(f"mocap error: x: {err_x:.3f}, y: {err_y:.3f}, z: {err_z:.3f}\n")
             if onscreen_render:
                 plt_img.set_data(ts.observation['images']['angle'])
-                plt.pause(0.02)
+                plt.pause(0.005)
         plt.close()
 
         episode_return = np.sum([ts.reward for ts in episode[1:]])
@@ -137,4 +146,3 @@ def test_policy(task_name):
 if __name__ == '__main__':
     test_task_name = 'sim_pick_cube_scripted'
     test_policy(test_task_name)
-
