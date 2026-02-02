@@ -47,25 +47,17 @@ class XArm6EETask(base.Task):
         np.copyto(physics.data.mocap_pos[0], action[:3])
         np.copyto(physics.data.mocap_quat[0], action[3:7])
 
-        # set gripper
-        g_ctrl = PUPPET_GRIPPER_POSITION_UNNORMALIZE_FN(action[7])
-        np.copyto(physics.data.ctrl, np.array([g_ctrl]))
-
     def initialize_robots(self, physics):
         # reset joint position
-        physics.named.data.qpos[:7] = START_ARM_POSE
+        physics.named.data.qpos[:6] = START_ARM_POSE
 
         # reset mocap to align with end effector
         # to obtain these numbers:
         # (1) make an ee_sim env and reset to the same start_pose
         # (2) get env._physics.named.data.xpos['gripper_base_link']
         #     get env._physics.named.data.xquat['gripper_base_link']
-        np.copyto(physics.data.mocap_pos[0], [0.22734068, 0.49999763, 0.5206962])
+        np.copyto(physics.data.mocap_pos[0], [0.3010574, 0.49999854, 0.43614391])
         np.copyto(physics.data.mocap_quat[0], [1, 0, 0, 0])
-
-        # reset gripper control
-        close_gripper_control = np.array([PUPPET_GRIPPER_POSITION_CLOSE])
-        np.copyto(physics.data.ctrl, close_gripper_control)
 
     def initialize_episode(self, physics):
         """Sets the state of the environment at the start of each episode."""
@@ -75,15 +67,13 @@ class XArm6EETask(base.Task):
     def get_qpos(physics):
         qpos_raw = physics.data.qpos.copy()
         arm_qpos = qpos_raw[:6]
-        gripper_qpos = [PUPPET_GRIPPER_POSITION_NORMALIZE_FN(qpos_raw[6])]
-        return np.concatenate([arm_qpos, gripper_qpos])
+        return arm_qpos
 
     @staticmethod
     def get_qvel(physics):
         qvel_raw = physics.data.qvel.copy()
         arm_qvel = qvel_raw[:6]
-        gripper_qvel = [PUPPET_GRIPPER_VELOCITY_NORMALIZE_FN(qvel_raw[6])]
-        return np.concatenate([arm_qvel, gripper_qvel])
+        return arm_qvel
 
     @staticmethod
     def get_env_state(physics):
@@ -104,8 +94,6 @@ class XArm6EETask(base.Task):
         # used in scripted policy to obtain starting pose
         obs['mocap_pose'] = np.concatenate([physics.data.mocap_pos[0], physics.data.mocap_quat[0]]).copy()
 
-        # used when replaying joint trajectory
-        obs['gripper_ctrl'] = physics.data.ctrl.copy()
         return obs
 
     def get_reward(self, physics):
@@ -122,16 +110,16 @@ class PickCubeEETask(XArm6EETask):
         """Sets the state of the environment at the start of each episode."""
         self.initialize_robots(physics)
         # randomize box position
-        # cube_pose = sample_box_pose()
+        cube_pose = sample_box_pose()
         box_start_idx = physics.model.name2id('red_box_joint', 'joint')
-        # np.copyto(physics.data.qpos[box_start_idx : box_start_idx + 7], cube_pose)
+        np.copyto(physics.data.qpos[box_start_idx : box_start_idx + 7], cube_pose)
         # print(f"randomized cube position to {cube_position}")
 
         super().initialize_episode(physics)
 
     @staticmethod
     def get_env_state(physics):
-        env_state = physics.data.qpos.copy()[12:]
+        env_state = physics.data.qpos.copy()[-7:]
         return env_state
 
     def get_reward(self, physics):
@@ -145,29 +133,24 @@ class PickCubeEETask(XArm6EETask):
             contact_pair = (name_geom_1, name_geom_2)
             all_contact_pairs.append(contact_pair)
 
-        def _touches(geom_name):
-            return (("red_box", geom_name) in all_contact_pairs) or ((geom_name, "red_box") in all_contact_pairs)
-
-        touch_gripper = _touches("right_finger_mesh") or _touches("left_finger_mesh")
+        touch_right_gripper = ("red_box", "link6") in all_contact_pairs
         touch_table = ("red_box", "table") in all_contact_pairs
 
         reward = 0
-        if touch_gripper:
+        if touch_right_gripper:
+            reward = 1
+        if touch_right_gripper and not touch_table: # lifted
             reward = 2
-        if touch_gripper and not touch_table:  # lifted
-            reward = 4
         return reward
-
 
 def print_mujoco_info():
     env = make_ee_sim_env('sim_pick_cube')
     env.reset()
     physics = env._physics
-    print(f"mocap pos: {physics.named.data.xpos['gripper_base_link']}")   # [0.22734068, 0.49999763, 0.5206962]
-    print(f"mocap quat: {physics.named.data.xquat['gripper_base_link']}") # [3.99999997e-04, 3.67235628e-06, -9.99999920e-01, -2.11985174e-06]
+    print(f"mocap pos: {physics.named.data.xpos['link6']}")  
+    print(f"mocap quat: {physics.named.data.xquat['link6']}")
     print(f"qpos: {physics.data.qpos}, shape: {physics.data.qpos.shape}")
     print(f"qvel: {physics.data.qvel}, shape: {physics.data.qvel.shape}")
-    print(f"drive joint idx: {physics.model.name2id('drive_joint', 'joint')}")
 
 if __name__ == '__main__':
     print_mujoco_info()

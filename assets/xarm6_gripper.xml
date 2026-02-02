@@ -1,5 +1,5 @@
 <mujocoinclude>
-  <body name="link_base" pos="0.55 0.5 0" euler="0 0 3.1416">
+  <body name="link_base" pos="0.5 0.5 0" euler="0 0 3.1416">
     <geom quat="1 0 0 0" type="mesh" mesh="link_base" name="link_base" contype="0" conaffinity="0"/>
 
 
@@ -70,77 +70,13 @@
 
 
                 <!-- Gripper base -->
-                <body name="gripper_base_link" pos="0 0 0" quat="1 0 0 0">
+                <!-- <body name="gripper_base_link" pos="0 0 0" quat="1 0 0 0">
                   <inertial pos="-0.00065489 -0.0018497 0.048028"
                             quat="0.0503981 0.700898 0.0510734 0.709643"
                             mass="0.54156"
                             diaginertia="0.00025480 0.00033231 0.00047109"/>
                   <geom type="mesh" mesh="gripper_base_mesh" pos="0 0 0" quat="1 0 0 0"/>
-
-
-                  <!-- Left outer knuckle (controlled by drive_joint) -->
-                  <body name="left_outer_knuckle" pos="0 0.035 0.059098">
-                    <inertial pos="2.9948E-14 0.021559 0.015181"
-                              quat="0.419788 0.771621 0.419788 -0.228379"
-                              mass="0.033618"
-                              diaginertia="1.90167e-06 1.79089e-05 1.91110e-05"/>
-                    <joint name="drive_joint" type="hinge" axis="1 0 0" range="0 0.85" limited="true" damping="1" frictionloss="0.0"/>
-                    <geom type="mesh" mesh="left_outer_knuckle_mesh" pos="0 0 0" quat="1 0 0 0"/>
-
-
-                    <!-- Left finger (mimics drive_joint) -->
-                    <body name="left_finger" pos="0 0.035465 0.042039">
-                      <inertial pos="-2.4536E-14 -0.016413 0.029258"
-                                quat="0.574869 -0.411735 -0.411735 -0.574869"
-                                mass="0.048304"
-                                diaginertia="3.56792e-06 1.74930e-05 1.88037e-05"/>
-                      <joint name="left_finger_joint" type="hinge" axis="-1 0 0" range="0 0.85" limited="true" damping="1" frictionloss="0.0"/>
-                      <geom type="mesh" mesh="left_finger_mesh" pos="0 0 0" quat="1 0 0 0"/>
-                    </body>
-                  </body>
-
-                  <!-- Left inner knuckle (mimics drive_joint) -->
-                  <body name="left_inner_knuckle" pos="0 0.02 0.074098">
-                    <inertial pos="1.86600784687907E-06 0.0220467847633621 0.0261334672830885"
-                              quat="0.297985 0.641242 0.641260 0.297993"
-                              mass="0.0230125781256706"
-                              diaginertia="2.75601e-06 6.09490e-06 8.34216e-06"/>
-                    <joint name="left_inner_knuckle_joint" type="hinge" axis="1 0 0" range="0 0.85" limited="true" damping="1" frictionloss="0.0"/>
-                    <geom type="mesh" mesh="left_inner_knuckle_mesh" pos="0 0 0" quat="1 0 0 0"/>
-                  </body>
-
-
-                  <!-- Right outer knuckle (mimics drive_joint, opposite direction) -->
-                  <body name="right_outer_knuckle" pos="0 -0.035 0.059098">
-                    <inertial pos="-3.1669E-14 -0.021559 0.015181"
-                              quat="0.419788 -0.771621 -0.419788 -0.228379"
-                              mass="0.033618"
-                              diaginertia="1.90167e-06 1.79089e-05 1.91110e-05"/>
-                    <joint name="right_outer_knuckle_joint" type="hinge" axis="-1 0 0" range="0 0.85" limited="true" damping="1" frictionloss="0.0"/>
-                    <geom type="mesh" mesh="right_outer_knuckle_mesh" pos="0 0 0" quat="1 0 0 0"/>
-
-
-                    <!-- Right finger (mimics drive_joint) -->
-                    <body name="right_finger" pos="0 -0.035465 0.042039">
-                      <inertial pos="2.5618E-14 0.016413 0.029258"
-                                quat="0.574860 0.411750 0.411750 -0.574860"
-                                mass="0.048304"
-                                diaginertia="3.56792e-06 1.74930e-05 1.88037e-05"/>
-                      <joint name="right_finger_joint" type="hinge" axis="1 0 0" range="0 0.85" limited="true" damping="1" frictionloss="0.0"/>
-                      <geom type="mesh" mesh="right_finger_mesh" pos="0 0 0" quat="1 0 0 0"/>
-                    </body>
-                  </body>
-
-                  <!-- Right inner knuckle (mimics drive_joint, opposite direction) -->
-                  <body name="right_inner_knuckle" pos="0 -0.02 0.074098">
-                    <inertial pos="1.866E-06 -0.022047 0.026133"
-                              quat="0.297994 -0.641260 -0.641242 0.297985"
-                              mass="0.023013"
-                              diaginertia="2.75601e-06 6.09490e-06 8.34216e-06"/>
-                    <joint name="right_inner_knuckle_joint" type="hinge" axis="-1 0 0" range="0 0.85" limited="true" damping="1" frictionloss="0.0"/>
-                    <geom type="mesh" mesh="right_inner_knuckle_mesh" pos="0 0 0" quat="1 0 0 0"/>
-                  </body>
-                </body>
+                </body> -->
               </body>
             </body>
           </body>

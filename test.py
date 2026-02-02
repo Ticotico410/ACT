@@ -23,14 +23,11 @@ class BasePolicy:
         t_frac = (t - curr_waypoint["t"]) / (next_waypoint["t"] - curr_waypoint["t"])
         curr_xyz = curr_waypoint['xyz']
         curr_quat = curr_waypoint['quat']
-        curr_grip = curr_waypoint['gripper']
         next_xyz = next_waypoint['xyz']
         next_quat = next_waypoint['quat']
-        next_grip = next_waypoint['gripper']
         xyz = curr_xyz + (next_xyz - curr_xyz) * t_frac
         quat = curr_quat + (next_quat - curr_quat) * t_frac
-        gripper = curr_grip + (next_grip - curr_grip) * t_frac
-        return xyz, quat, gripper
+        return xyz, quat
 
     def __call__(self, ts):
         # generate trajectory at first timestep, then open-loop execution
@@ -43,14 +40,14 @@ class BasePolicy:
         next_waypoint = self.trajectory[0]
 
         # interpolate between waypoints to obtain current pose and gripper command
-        xyz, quat, gripper = self.interpolate(self.curr_waypoint, next_waypoint, self.step_count)
+        xyz, quat = self.interpolate(self.curr_waypoint, next_waypoint, self.step_count)
 
         # Inject noise
         if self.inject_noise:
             scale = 0.01
             xyz = xyz + np.random.uniform(-scale, scale, xyz.shape)
 
-        action = np.concatenate([xyz, quat, [gripper]])
+        action = np.concatenate([xyz, quat])
 
         self.step_count += 1
         return action
@@ -67,17 +64,26 @@ class PickPolicy(BasePolicy):
         box_quat = box_info[3:]
 
         gripper_pick_quat = Quaternion(init_mocap_pose[3:])
-        gripper_pick_quat = gripper_pick_quat * Quaternion(axis=[0.0, 1.0, 0.0], degrees=-60)
+        gripper_pick_quat = gripper_pick_quat * Quaternion(axis=[0.0, 1.0, 0.0], degrees=-0)
 
         # Original trajectory (commented out):
+        # self.trajectory = [
+        #     {"t": 0, "xyz": init_mocap_pose[:3], "quat": init_mocap_pose[3:]}, # sleep
+        #     {"t": 90, "xyz": box_xyz + np.array([0, 0, 0.15]), "quat": gripper_pick_quat.elements},     # approach the cube
+        #     {"t": 130, "xyz": box_xyz + np.array([0, 0, -0.015]), "quat": gripper_pick_quat.elements},  # go down
+        #     {"t": 170, "xyz": box_xyz + np.array([0, 0, -0.015]), "quat": gripper_pick_quat.elements},  # close gripper
+        #     {"t": 310, "xyz": box_xyz + np.array([0, 0, 0.015]), "quat": gripper_pick_quat.elements},   # go up
+        #     {"t": 360, "xyz": box_xyz + np.array([0.1, 0, 0]), "quat": gripper_pick_quat.elements},     # move to right
+        #     {"t": 400, "xyz": box_xyz + np.array([0.1, 0, 0]), "quat": gripper_pick_quat.elements},     # stay
+        # ]
         self.trajectory = [
             {"t": 0, "xyz": init_mocap_pose[:3], "quat": init_mocap_pose[3:], "gripper": 0}, # sleep
-            {"t": 90, "xyz": box_xyz + np.array([0, 0, 0.08]), "quat": gripper_pick_quat.elements, "gripper": 1},     # approach the cube
-            {"t": 130, "xyz": box_xyz + np.array([0, 0, -0.015]), "quat": gripper_pick_quat.elements, "gripper": 1},  # go down
-            {"t": 170, "xyz": box_xyz + np.array([0, 0, -0.015]), "quat": gripper_pick_quat.elements, "gripper": 0},  # close gripper
-            {"t": 310, "xyz": box_xyz + np.array([0, 0, 0.015]), "quat": gripper_pick_quat.elements, "gripper": 1},   # go up
-            {"t": 360, "xyz": box_xyz + np.array([0.1, 0, 0]), "quat": gripper_pick_quat.elements, "gripper": 1},     # move to right
-            {"t": 400, "xyz": box_xyz + np.array([0.1, 0, 0]), "quat": gripper_pick_quat.elements, "gripper": 1},     # stay
+            {"t": 90, "xyz": box_xyz + np.array([0, 0, 0.3]), "quat": gripper_pick_quat.elements, "gripper": 1},     # approach the cube
+            {"t": 130, "xyz": init_mocap_pose[:3], "quat": init_mocap_pose[3:], "gripper": 0},  # sleep
+            {"t": 170, "xyz": init_mocap_pose[:3], "quat": init_mocap_pose[3:], "gripper": 0},  # sleep
+            {"t": 310, "xyz": init_mocap_pose[:3], "quat": init_mocap_pose[3:], "gripper": 0},   # sleep
+            {"t": 360, "xyz": init_mocap_pose[:3], "quat": init_mocap_pose[3:], "gripper": 0},     # sleep
+            {"t": 400, "xyz": init_mocap_pose[:3], "quat": init_mocap_pose[3:], "gripper": 0},     # sleep
         ]
 
 def test_policy(task_name):
@@ -92,7 +98,7 @@ def test_policy(task_name):
     else:
         raise NotImplementedError
 
-    for episode_idx in range(1):
+    for episode_idx in range(3):
         ts = env.reset()
         episode = [ts]
         # Print initial qpos (ts=0)
