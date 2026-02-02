@@ -67,6 +67,9 @@ class XArm6EETask(base.Task):
         close_gripper_control = np.array([PUPPET_GRIPPER_POSITION_CLOSE])
         np.copyto(physics.data.ctrl, close_gripper_control)
 
+        # forward physics to update positions after setting qpos
+        physics.forward()
+
     def initialize_episode(self, physics):
         """Sets the state of the environment at the start of each episode."""
         super().initialize_episode(physics)

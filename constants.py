@@ -16,7 +16,7 @@ DT = 0.02
 JOINT_NAMES = ["joint1", "joint2", "joint3", "joint4", "joint5", "joint6"]
 
 # 6 revolute joints qpos + gripper drive joint qpos (open)
-START_ARM_POSE = [0.0, -0.5236, -1.0472, 0.0, 1.57, 0.0, 0.0]
+START_ARM_POSE = [0.0, -1.0472, -0.5236, 0.0, 1.57, 0.0, 0.0]
 
 XML_DIR = str(pathlib.Path(__file__).parent.resolve()) + '/assets/' # note: absolute path
 

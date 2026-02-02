@@ -33,8 +33,16 @@
         <joint joint1="right_inner_knuckle_joint" joint2="drive_joint" polycoef="0 -1 0 0 0" solref="0.002 1" solimp="0.98 0.99 0.001"/>
     </equality>
 
-    <!-- gripper drive joint -->
     <actuator>
+        <!-- arm actuators -->
+        <position joint="joint1" kp="350" user="1" ctrllimited="true" ctrlrange="-31.41592653589793 31.41592653589793" forcelimited="true" forcerange="-50 50"/>
+        <position joint="joint2" kp="350" user="1" ctrllimited="true" ctrlrange="-31.41592653589793 31.41592653589793" forcelimited="true" forcerange="-50 50"/>
+        <position joint="joint3" kp="350" user="1" ctrllimited="true" ctrlrange="-31.41592653589793 31.41592653589793" forcelimited="true" forcerange="-32 32"/>
+        <position joint="joint4" kp="350" user="1" ctrllimited="true" ctrlrange="-31.41592653589793 31.41592653589793" forcelimited="true" forcerange="-32 32"/>
+        <position joint="joint5" kp="350" user="1" ctrllimited="true" ctrlrange="-31.41592653589793 31.41592653589793" forcelimited="true" forcerange="-32 32"/>
+        <position joint="joint6" kp="350" user="1" ctrllimited="true" ctrlrange="-31.41592653589793 31.41592653589793" forcelimited="true" forcerange="-20 20"/>
+    
+        <!-- gripper drive joint -->
         <position ctrllimited="true" ctrlrange="0 0.85" joint="drive_joint" kp="200" user="1" forcelimited="true" forcerange="-50 50"/>
     </actuator>
 
