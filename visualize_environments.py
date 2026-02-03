@@ -1,4 +1,5 @@
 import os
+import argparse
 from constants import XML_DIR
 
 
@@ -63,7 +64,12 @@ def visualize_xml(xml_filename, use_viewer=True):
         plt.show()
 
 if __name__ == '__main__':
-    filename = 'xarm6_ee_pick_cube.xml'
-    # filename = 'xarm6_viz.xml'
-    use_viewer = True
-    visualize_xml(filename, use_viewer=use_viewer)
+    parser = argparse.ArgumentParser(description="Visualize a MuJoCo XML environment.")
+    parser.add_argument(
+        "--filename",
+        type=str,
+        required=True,
+    )
+    args = parser.parse_args()
+
+    visualize_xml(args.filename, use_viewer=True)

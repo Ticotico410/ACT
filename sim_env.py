@@ -18,18 +18,18 @@ BOX_POSE = [None] # to be changed from outside
 
 def make_sim_env(task_name):
     """
-    Environment for simulated XArm6 manipulation, with joint position control
-    Action space:      [arm_qpos (6),            # absolute joint position
+    Environment for simulated XArm7 manipulation, with joint position control
+    Action space:      [arm_qpos (7),            # absolute joint position
                         gripper_positions (1),]  # normalized gripper position (0: close, 1: open)
 
-    Observation space: {"qpos": Concat[ arm_qpos (6),          # absolute joint position
+    Observation space: {"qpos": Concat[ arm_qpos (7),          # absolute joint position
                                         gripper_qpos (1)]      # normalized gripper position (0: close, 1: open)
-                        "qvel": Concat[ arm_qvel (6),          # absolute joint velocity (rad)
+                        "qvel": Concat[ arm_qvel (7),          # absolute joint velocity (rad)
                                         gripper_velocity (1)]  # normalized gripper velocity (pos: opening, neg: closing)
                         "images": {"main": (480x640x3)}        # h, w, c, dtype='uint8'
     """
     if 'sim_pick_cube' in task_name:
-        xml_path = os.path.join(XML_DIR, f'xarm6_pick_cube.xml')
+        xml_path = os.path.join(XML_DIR, f'xarm7_pick_cube.xml')
         physics = mujoco.Physics.from_xml_path(xml_path)
         task = PickCubeTask(random=False)
         env = control.Environment(physics, task, time_limit=20, control_timestep=DT,
@@ -38,18 +38,17 @@ def make_sim_env(task_name):
         raise NotImplementedError
     return env
 
-class XArm6Task(base.Task):
+class XArm7Task(base.Task):
     def __init__(self, random=None):
         super().__init__(random=random)
 
     def before_step(self, action, physics):
-        arm_action = action[:6]
-        normalized_gripper_action = action[6]
+        arm_action = action[:7]
+        normalized_gripper_action = action[7]
 
         gripper_action = PUPPET_GRIPPER_POSITION_UNNORMALIZE_FN(normalized_gripper_action)
-        full_gripper_action = [gripper_action, -gripper_action]
 
-        env_action = np.concatenate([arm_action, full_gripper_action])
+        env_action = np.concatenate([arm_action, np.array([gripper_action])])
         super().before_step(env_action, physics)
         return
 
@@ -60,15 +59,15 @@ class XArm6Task(base.Task):
     @staticmethod
     def get_qpos(physics):
         qpos_raw = physics.data.qpos.copy()
-        arm_qpos = qpos_raw[:6]
-        gripper_qpos = [PUPPET_GRIPPER_POSITION_NORMALIZE_FN(qpos_raw[6])]
+        arm_qpos = qpos_raw[:7]
+        gripper_qpos = [PUPPET_GRIPPER_POSITION_NORMALIZE_FN(qpos_raw[7])]
         return np.concatenate([arm_qpos, gripper_qpos])
 
     @staticmethod
     def get_qvel(physics):
         qvel_raw = physics.data.qvel.copy()
-        arm_qvel = qvel_raw[:6]
-        gripper_qvel = [PUPPET_GRIPPER_VELOCITY_NORMALIZE_FN(qvel_raw[6])]
+        arm_qvel = qvel_raw[:7]
+        gripper_qvel = [PUPPET_GRIPPER_VELOCITY_NORMALIZE_FN(qvel_raw[7])]
         return np.concatenate([arm_qvel, gripper_qvel])
 
     @staticmethod
@@ -94,7 +93,7 @@ class XArm6Task(base.Task):
         pass
 
 
-class PickCubeTask(XArm6Task):
+class PickCubeTask(XArm7Task):
     def __init__(self, random=None):
         super().__init__(random=random)
         self.max_reward = 4
@@ -104,7 +103,7 @@ class PickCubeTask(XArm6Task):
         # TODO Notice: this function does not randomize the env configuration. Instead, set BOX_POSE from outside
         # reset qpos, control and box position
         with physics.reset_context():
-            physics.named.data.qpos[:7] = START_ARM_POSE
+            physics.named.data.qpos[:8] = START_ARM_POSE
             np.copyto(physics.data.ctrl, START_ARM_POSE)
             assert BOX_POSE[0] is not None
             physics.named.data.qpos[-7:] = BOX_POSE[0]
@@ -113,11 +112,13 @@ class PickCubeTask(XArm6Task):
 
     @staticmethod
     def get_env_state(physics):
-        env_state = physics.data.qpos.copy()[12:]
+        env_state = physics.data.qpos.copy()[-7:]
         return env_state
 
     def get_reward(self, physics):
-        # return whether gripper is holding the box
+        """
+        Reward function: reward = 4 if gripper touches the box, 0 otherwise
+        """
         all_contact_pairs = []
         for i_contact in range(physics.data.ncon):
             id_geom_1 = physics.data.contact[i_contact].geom1
@@ -130,14 +131,9 @@ class PickCubeTask(XArm6Task):
         def _touches(geom_name):
             return (("red_box", geom_name) in all_contact_pairs) or ((geom_name, "red_box") in all_contact_pairs)
 
-        touch_gripper = _touches("right_finger_mesh") or _touches("left_finger_mesh")
-        touch_table = ("red_box", "table") in all_contact_pairs
+        touch_gripper = _touches("right_finger") or _touches("left_finger")
 
-        reward = 0
-        if touch_gripper:
-            reward = 2
-        if touch_gripper and not touch_table:  # lifted
-            reward = 4
+        reward = 4 if touch_gripper else 0
         return reward
 
 

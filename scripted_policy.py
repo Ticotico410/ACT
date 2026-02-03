@@ -58,6 +58,10 @@ class BasePolicy:
 
 class PickPolicy(BasePolicy):
 
+    def __init__(self, inject_noise=False, physics=None):
+        super().__init__(inject_noise)
+        self.physics = physics
+
     def generate_trajectory(self, ts_first):
         init_mocap_pose = ts_first.observation['mocap_pose']
         # print(f"init_mocap_pose: {init_mocap_pose}")
@@ -69,21 +73,16 @@ class PickPolicy(BasePolicy):
         gripper_pick_quat = Quaternion(init_mocap_pose[3:])
         gripper_pick_quat = gripper_pick_quat * Quaternion(axis=[0.0, 1.0, 0.0], degrees=30)
 
-        # Original trajectory (commented out):
-        # self.trajectory = [
-        #     {"t": 0, "xyz": init_mocap_pose[:3], "quat": init_mocap_pose[3:], "gripper": 0}, # sleep
-        #     {"t": 90, "xyz": box_xyz + np.array([0, 0, 0.08]), "quat": gripper_pick_quat.elements, "gripper": 1},     # approach the cube
-        #     {"t": 130, "xyz": box_xyz + np.array([0, 0, -0.015]), "quat": gripper_pick_quat.elements, "gripper": 1},  # go down
-        #     {"t": 170, "xyz": box_xyz + np.array([0, 0, -0.015]), "quat": gripper_pick_quat.elements, "gripper": 0},  # close gripper
-        #     {"t": 310, "xyz": box_xyz + np.array([0, 0, 0.015]), "quat": gripper_pick_quat.elements, "gripper": 1},   # go up
-        #     {"t": 360, "xyz": box_xyz + np.array([0.1, 0, 0]), "quat": gripper_pick_quat.elements, "gripper": 1},     # move to right
-        #     {"t": 400, "xyz": box_xyz + np.array([0.1, 0, 0]), "quat": gripper_pick_quat.elements, "gripper": 1},     # stay
-        # ]
+        if self.physics is not None:
+            target_pos = self.physics.named.data.xpos['target_point'].copy()
 
         self.trajectory = [
-            {"t":   0, "xyz": init_mocap_pose[:3], "quat": init_mocap_pose[3:], "gripper": 0}, # sleep
-            {"t": 100, "xyz": box_xyz + np.array([0, 0, 0.20]), "quat": gripper_pick_quat.elements, "gripper": 1}, # approach the cube
-            {"t": 400, "xyz": init_mocap_pose[:3], "quat": init_mocap_pose[3:], "gripper": 0},     # sleep
+            {"t": 0, "xyz": init_mocap_pose[:3], "quat": init_mocap_pose[3:], "gripper": 1},                        # sleep
+            {"t": 50, "xyz": box_xyz + np.array([0, 0, 0.20]), "quat": gripper_pick_quat.elements, "gripper": 1},  # approach the cube
+            {"t": 100, "xyz": box_xyz + np.array([0, 0, -0.05]), "quat": gripper_pick_quat.elements, "gripper": 1}, # go down
+            {"t": 250, "xyz": box_xyz, "quat": gripper_pick_quat.elements, "gripper": 0},                           # close gripper
+            {"t": 300, "xyz": box_xyz + np.array([0, 0, 0.05]), "quat": gripper_pick_quat.elements, "gripper": 0}, # move up                          
+            {"t": 500, "xyz": target_pos, "quat": gripper_pick_quat.elements, "gripper": 0},                        # move to target point   
         ]
 
 def test_policy(task_name):
@@ -99,7 +98,7 @@ def test_policy(task_name):
     else:
         raise NotImplementedError
 
-    for episode_idx in range(1):
+    for episode_idx in range(5):
         ts = env.reset()
         episode = [ts]
         # Print initial qpos (ts=0)
@@ -117,20 +116,20 @@ def test_policy(task_name):
             plt.show()
             plt.pause(0.5)
 
-        policy = PickPolicy(inject_noise)
+        policy = PickPolicy(inject_noise, physics=physics)
         for step in range(episode_len):
             action = policy(ts)
             ts = env.step(action)
             episode.append(ts)
             if step % 10 == 0:
-                print(f"ts={step}")
+                # print(f"ts={step}")
                 # print(f"qpos: {ts.observation['qpos']}")
                 # print(f"action: {action}")
-                # print(f"gripper base link pos: {physics.named.data.xpos['gripper_base_link']}\n")
-                err_x = np.abs(ts.observation['mocap_pose'][0] - physics.named.data.xpos['gripper_base_link'][0])
-                err_y = np.abs(ts.observation['mocap_pose'][1] - physics.named.data.xpos['gripper_base_link'][1])
-                err_z = np.abs(ts.observation['mocap_pose'][2] - physics.named.data.xpos['gripper_base_link'][2])
-                print(f"mocap error: x: {err_x:.3f}, y: {err_y:.3f}, z: {err_z:.3f}\n")
+                # print(f"gripper base link pos: {physics.named.data.xpos['xarm_gripper_base_link']}\n")
+                err_x = np.abs(ts.observation['mocap_pose'][0] - physics.named.data.xpos['xarm_gripper_base_link'][0])
+                err_y = np.abs(ts.observation['mocap_pose'][1] - physics.named.data.xpos['xarm_gripper_base_link'][1])
+                err_z = np.abs(ts.observation['mocap_pose'][2] - physics.named.data.xpos['xarm_gripper_base_link'][2])
+                # print(f"mocap error: x: {err_x:.3f}, y: {err_y:.3f}, z: {err_z:.3f}\n")
             if onscreen_render:
                 plt_img.set_data(ts.observation['images']['angle'])
                 plt.pause(0.005)

@@ -5,18 +5,18 @@ DATA_DIR = '/home/ycb410/ERL/ycb_ws/ACT/datasets'
 SIM_TASK_CONFIGS = {
     'sim_pick_cube_scripted':{
         'dataset_dir': DATA_DIR + '/sim_pick_cube_scripted',
-        'num_episodes': 50,
-        'episode_len': 400,
+        'num_episodes': 5,
+        'episode_len': 500,
         'camera_names': ['top']
     }
 }
 
 ### Simulation envs fixed constants
 DT = 0.02
-JOINT_NAMES = ["joint1", "joint2", "joint3", "joint4", "joint5", "joint6"]
+JOINT_NAMES = ["joint1", "joint2", "joint3", "joint4", "joint5", "joint6", "joint7"]
 
-# 6 revolute joints qpos + gripper drive joint qpos (open)
-START_ARM_POSE = [0.0, -1.0472, -0.5236, 0.0, 1.57, 0.0, 0.0]
+# 7 revolute joints qpos + 1 gripper drive joint qpos (open)
+START_ARM_POSE = [0.0, -0.247, 0.0, 0.909, 0.0, 1.15644, 0.0, 0.0]
 
 XML_DIR = str(pathlib.Path(__file__).parent.resolve()) + '/assets/' # note: absolute path
 
@@ -26,11 +26,12 @@ MASTER_GRIPPER_POSITION_CLOSE = 0.85
 PUPPET_GRIPPER_POSITION_OPEN = 0.0
 PUPPET_GRIPPER_POSITION_CLOSE = 0.85
 
-# TODO： Gripper joint limits (qpos[6])
-MASTER_GRIPPER_JOINT_OPEN = 0.3083
-MASTER_GRIPPER_JOINT_CLOSE = -0.6842
-PUPPET_GRIPPER_JOINT_OPEN = 1.4910
-PUPPET_GRIPPER_JOINT_CLOSE = -0.6213
+# XArm7 gripper joint limits (qpos[7] = left_driver_joint)
+# For XArm7, joint and position are the same (qpos[7] directly controls the gripper)
+MASTER_GRIPPER_JOINT_OPEN = 0.0
+MASTER_GRIPPER_JOINT_CLOSE = 0.85
+PUPPET_GRIPPER_JOINT_OPEN = 0.0
+PUPPET_GRIPPER_JOINT_CLOSE = 0.85
 
 
 

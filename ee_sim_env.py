@@ -23,14 +23,14 @@ def make_ee_sim_env(task_name):
     Action space:      [arm_pose (7),             # position and quaternion for end effector
                         gripper_positions (1),]   # normalized gripper position (0: close, 1: open)
 
-    Observation space: {"qpos": Concat[ arm_qpos (6),          # absolute joint position
+    Observation space: {"qpos": Concat[ arm_qpos (7),          # absolute joint position
                                         gripper_position (1)]  # normalized gripper position (0: close, 1: open)
-                        "qvel": Concat[ arm_qvel (6),          # absolute joint velocity (rad)
+                        "qvel": Concat[ arm_qvel (7),          # absolute joint velocity (rad)
                                         gripper_velocity (1)]  # normalized gripper velocity (pos: opening, neg: closing)
                         "images": {"main": (480x640x3)}        # h, w, c, dtype='uint8'
     """
     if 'sim_pick_cube' in task_name:
-        xml_path = os.path.join(XML_DIR, f'xarm6_ee_pick_cube.xml')
+        xml_path = os.path.join(XML_DIR, f'xarm7_ee_pick_cube.xml')
         physics = mujoco.Physics.from_xml_path(xml_path)
         task = PickCubeEETask(random=False)
         env = control.Environment(physics, task, time_limit=20, control_timestep=DT, n_sub_steps=None, flat_observation=False)
@@ -38,7 +38,7 @@ def make_ee_sim_env(task_name):
         raise NotImplementedError
     return env
 
-class XArm6EETask(base.Task):
+class XArm7EETask(base.Task):
     def __init__(self, random=None):
         super().__init__(random=random)
 
@@ -53,14 +53,14 @@ class XArm6EETask(base.Task):
 
     def initialize_robots(self, physics):
         # reset joint position
-        physics.named.data.qpos[:7] = START_ARM_POSE
+        physics.named.data.qpos[:8] = START_ARM_POSE
 
         # reset mocap to align with end effector
         # to obtain these numbers:
         # (1) make an ee_sim env and reset to the same start_pose
         # (2) get env._physics.named.data.xpos['gripper_base_link']
         #     get env._physics.named.data.xquat['gripper_base_link']
-        np.copyto(physics.data.mocap_pos[0], [0.3010574, 0.49999854, 0.43614391])
+        np.copyto(physics.data.mocap_pos[0], [0.10008518, 0.49999706, 0.39980931])
         np.copyto(physics.data.mocap_quat[0], [1, 0, 0, 0])
 
         # reset gripper control
@@ -74,15 +74,15 @@ class XArm6EETask(base.Task):
     @staticmethod
     def get_qpos(physics):
         qpos_raw = physics.data.qpos.copy()
-        arm_qpos = qpos_raw[:6]
-        gripper_qpos = [PUPPET_GRIPPER_POSITION_NORMALIZE_FN(qpos_raw[6])]
+        arm_qpos = qpos_raw[:7]
+        gripper_qpos = [PUPPET_GRIPPER_POSITION_NORMALIZE_FN(qpos_raw[7])]
         return np.concatenate([arm_qpos, gripper_qpos])
 
     @staticmethod
     def get_qvel(physics):
         qvel_raw = physics.data.qvel.copy()
-        arm_qvel = qvel_raw[:6]
-        gripper_qvel = [PUPPET_GRIPPER_VELOCITY_NORMALIZE_FN(qvel_raw[6])]
+        arm_qvel = qvel_raw[:7]
+        gripper_qvel = [PUPPET_GRIPPER_VELOCITY_NORMALIZE_FN(qvel_raw[7])]
         return np.concatenate([arm_qvel, gripper_qvel])
 
     @staticmethod
@@ -113,7 +113,7 @@ class XArm6EETask(base.Task):
         pass
 
 
-class PickCubeEETask(XArm6EETask):
+class PickCubeEETask(XArm7EETask):
     def __init__(self, random=None):
         super().__init__(random=random)
         self.max_reward = 4
@@ -122,20 +122,22 @@ class PickCubeEETask(XArm6EETask):
         """Sets the state of the environment at the start of each episode."""
         self.initialize_robots(physics)
         # randomize box position
-        # cube_pose = sample_box_pose()
+        cube_pose = sample_box_pose()
         box_start_idx = physics.model.name2id('red_box_joint', 'joint')
-        # np.copyto(physics.data.qpos[box_start_idx : box_start_idx + 7], cube_pose)
-        # print(f"randomized cube position to {cube_position}")
+        np.copyto(physics.data.qpos[box_start_idx : box_start_idx + 7], cube_pose)
+        # print(f"randomized cube position to {cube_pose[:3]}")
 
         super().initialize_episode(physics)
 
     @staticmethod
     def get_env_state(physics):
-        env_state = physics.data.qpos.copy()[12:]
+        env_state = physics.data.qpos.copy()[-7:]
         return env_state
 
     def get_reward(self, physics):
-        # return whether gripper is holding the box
+        """
+        Reward function: reward = 4 if gripper touches the box, 0 otherwise
+        """
         all_contact_pairs = []
         for i_contact in range(physics.data.ncon):
             id_geom_1 = physics.data.contact[i_contact].geom1
@@ -148,93 +150,22 @@ class PickCubeEETask(XArm6EETask):
         def _touches(geom_name):
             return (("red_box", geom_name) in all_contact_pairs) or ((geom_name, "red_box") in all_contact_pairs)
 
-        touch_gripper = _touches("right_finger_mesh") or _touches("left_finger_mesh")
-        touch_table = ("red_box", "table") in all_contact_pairs
+        touch_gripper = _touches("right_finger") or _touches("left_finger")
 
-        reward = 0
-        if touch_gripper:
-            reward = 2
-        if touch_gripper and not touch_table:  # lifted
-            reward = 4
+        reward = 4 if touch_gripper else 2
         return reward
 
 
-def print_mujoco_info():
+if __name__ == '__main__':
     env = make_ee_sim_env('sim_pick_cube')
     env.reset()
     physics = env._physics
-    print(f"mocap pos: {physics.named.data.xpos['gripper_base_link']}")   # [0.22734068, 0.49999763, 0.5206962]
-    print(f"mocap quat: {physics.named.data.xquat['gripper_base_link']}") # [3.99999997e-04, 3.67235628e-06, -9.99999920e-01, -2.11985174e-06]
+
+    print(f"mocap pos: {physics.named.data.xpos['xarm_gripper_base_link']}")   
+    print(f"mocap quat: {physics.named.data.xquat['xarm_gripper_base_link']}")
     print(f"qpos: {physics.data.qpos}, shape: {physics.data.qpos.shape}")
     print(f"qvel: {physics.data.qvel}, shape: {physics.data.qvel.shape}")
-    print(f"drive joint idx: {physics.model.name2id('drive_joint', 'joint')}")
+    print(f"left drive joint idx: {physics.model.name2id('left_driver_joint', 'joint')}")
+    print(f"right drive joint idx: {physics.model.name2id('right_driver_joint', 'joint')}\n")
 
-def inertia_check():
-    # 加载环境
-    xml_path = os.path.join(XML_DIR, 'xarm6_ee_pick_cube.xml')
-    physics = mujoco.Physics.from_xml_path(xml_path)
-    
-    # 所有需要打印的 body 名称（包括 6 个 joint link 和 gripper 相关 body）
-    body_names = [
-        'link1',
-        'link2',
-        'link3',
-        'link4',
-        'link5',
-        'link6',
-        'gripper_base_link',
-        'left_outer_knuckle',
-        'left_finger',
-        'left_inner_knuckle',
-        'right_outer_knuckle',
-        'right_finger',
-        'right_inner_knuckle'
-    ]
-    
-    print("=" * 80)
-    print("Body Mass and Inertia Information")
-    print("=" * 80)
-    
-    for body_name in body_names:
-        try:
-            body_id = physics.model.name2id(body_name, 'body')
-            mass = physics.model.body_mass[body_id]
-            
-            # 获取惯性矩阵
-            # body_inertia 的形状是 (nbody, 3, 3)，每个 body 有一个 3x3 的惯性矩阵
-            inertia = physics.model.body_inertia[body_id]  # shape: (3, 3)
-            
-            print(f"\nBody: {body_name} (ID: {body_id})")
-            print(f"  Mass: {mass:.6f} kg")
-            print(f"  Inertia Matrix:")
-            print(inertia)
-            
-        except ValueError as e:
-            print(f"\nWarning: Body '{body_name}' not found in model: {e}")
-    
-    print("\n" + "=" * 80)
-
-def print_jnt_axis():
-    xml_path = os.path.join(XML_DIR, 'xarm6_ee_pick_cube.xml')
-    physics = mujoco.Physics.from_xml_path(xml_path)
-
-    print("=" * 80)
-    print("Joint Axis (physics.model.jnt_axis)")
-    print("=" * 80)
-
-    joint_names = getattr(physics.model, "joint_names", None)
-    if joint_names is None:
-        for j_id, axis in enumerate(physics.model.jnt_axis):
-            print(f"joint_id={j_id:3d} axis={axis}")
-        return
-
-    for j_id, j_name in enumerate(joint_names):
-        if not j_name:
-            continue
-        axis = physics.model.jnt_axis[j_id]
-        print(f"joint_name={j_name:30s} joint_id={j_id:3d} axis={axis}")
-
-if __name__ == '__main__':
-    # print_mujoco_info()
-    # inertia_check()
-    print_jnt_axis()
+ 
