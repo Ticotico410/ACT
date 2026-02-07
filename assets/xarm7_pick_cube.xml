@@ -70,7 +70,7 @@
         </body>
 
         <!-- 绿色目标点：仅用于可视化参考，不参与物理碰撞 -->
-        <body name="target_point" pos="0.1 0.3 0.05">
+        <body name="target_point" pos="0.0 0.5 0.05">
             <!-- 使用 site 作为可视化标记（site 本身不参与碰撞） -->
             <site pos="0 0 0" size="0.015" type="sphere" name="target_site" rgba="0 1 0 1"/>
             <!-- 可选的 geom 标记，设置为无碰撞（contype="0" conaffinity="0"） -->
@@ -119,14 +119,14 @@
     </tendon>
 
     <actuator>
-        <position name="act1" joint="joint1" kp="350" ctrlrange="-6.28319 6.28319" forcerange="-50 50"/>
-        <position name="act2" joint="joint2" kp="350" ctrlrange="-2.059 2.0944" forcerange="-50 50"/>
-        <position name="act3" joint="joint3" kp="350" ctrlrange="-6.28319 6.28319" forcerange="-30 30"/>
-        <position name="act4" joint="joint4" kp="350" ctrlrange="-0.19198 3.927" forcerange="-30 30"/>
-        <position name="act5" joint="joint5" kp="350" ctrlrange="-6.28319 6.28319" forcerange="-30 30"/>
-        <position name="act6" joint="joint6" kp="350" ctrlrange="-1.69297 3.14159" forcerange="-20 20"/>
-        <position name="act7" joint="joint7" kp="350" ctrlrange="-6.28319 6.28319" forcerange="-20 20"/>
-        <position name="gripper" joint="left_driver_joint" kp="200" ctrlrange="0 0.85" forcerange="-50 50"/>
+        <position name="act1" joint="joint1" kp="250" ctrlrange="-6.28319 6.28319" forcerange="-50 50"/>
+        <position name="act2" joint="joint2" kp="250" ctrlrange="-2.059 2.0944" forcerange="-50 50"/>
+        <position name="act3" joint="joint3" kp="250" ctrlrange="-6.28319 6.28319" forcerange="-30 30"/>
+        <position name="act4" joint="joint4" kp="250" ctrlrange="-0.19198 3.927" forcerange="-30 30"/>
+        <position name="act5" joint="joint5" kp="250" ctrlrange="-6.28319 6.28319" forcerange="-30 30"/>
+        <position name="act6" joint="joint6" kp="250" ctrlrange="-1.69297 3.14159" forcerange="-20 20"/>
+        <position name="act7" joint="joint7" kp="250" ctrlrange="-6.28319 6.28319" forcerange="-20 20"/>
+        <position name="gripper" joint="left_driver_joint" kp="150" ctrlrange="0 0.85" forcerange="-50 50"/>
     </actuator>
 
     <keyframe>

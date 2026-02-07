@@ -80,9 +80,8 @@ class PickPolicy(BasePolicy):
             {"t": 0, "xyz": init_mocap_pose[:3], "quat": init_mocap_pose[3:], "gripper": 1},                        # sleep
             {"t": 50, "xyz": box_xyz + np.array([0, 0, 0.20]), "quat": gripper_pick_quat.elements, "gripper": 1},  # approach the cube
             {"t": 100, "xyz": box_xyz + np.array([0, 0, -0.05]), "quat": gripper_pick_quat.elements, "gripper": 1}, # go down
-            {"t": 250, "xyz": box_xyz, "quat": gripper_pick_quat.elements, "gripper": 0},                           # close gripper
-            {"t": 300, "xyz": box_xyz + np.array([0, 0, 0.05]), "quat": gripper_pick_quat.elements, "gripper": 0}, # move up                          
-            {"t": 500, "xyz": target_pos, "quat": gripper_pick_quat.elements, "gripper": 0},                        # move to target point   
+            {"t": 250, "xyz": box_xyz, "quat": gripper_pick_quat.elements, "gripper": 0},                           # close gripper                        
+            {"t": 400, "xyz": target_pos, "quat": gripper_pick_quat.elements, "gripper": 0},                        # move to target point   
         ]
 
 def test_policy(task_name):

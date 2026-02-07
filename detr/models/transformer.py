@@ -73,7 +73,7 @@ class Transformer(nn.Module):
         memory = self.encoder(src, src_key_padding_mask=mask, pos=pos_embed)
         hs = self.decoder(tgt, memory, memory_key_padding_mask=mask,
                           pos=pos_embed, query_pos=query_embed)
-        hs = hs.transpose(1, 2)
+        hs = hs.transpose(1, 2) # (bs, seq, hidden_dim)
         return hs
 
 class TransformerEncoder(nn.Module):

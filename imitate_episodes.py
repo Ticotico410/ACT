@@ -55,10 +55,10 @@ def main(args):
         dec_layers = 7
         nheads = 8
         policy_config = {'lr': args['lr'],
-                         'num_queries': args['chunk_size'],
-                         'kl_weight': args['kl_weight'],
+                         'num_queries': args['chunk_size'], # 100
+                         'kl_weight': args['kl_weight'], # 10
                          'hidden_dim': args['hidden_dim'],
-                         'dim_feedforward': args['dim_feedforward'],
+                         'dim_feedforward': args['dim_feedforward'], # 3200
                          'lr_backbone': lr_backbone,
                          'backbone': backbone,
                          'enc_layers': enc_layers,
@@ -68,8 +68,13 @@ def main(args):
                          'state_dim': state_dim,
                          }
     elif policy_class == 'CNNMLP':
-        policy_config = {'lr': args['lr'], 'lr_backbone': lr_backbone, 'backbone' : backbone, 'num_queries': 1,
-                         'camera_names': camera_names, 'state_dim': state_dim,}
+        policy_config = {'lr': args['lr'], 
+                         'lr_backbone': lr_backbone, 
+                         'backbone' : backbone, 
+                         'num_queries': 1,
+                         'state_dim': state_dim,
+                         'camera_names': camera_names,
+                         }
     else:
         raise NotImplementedError
 

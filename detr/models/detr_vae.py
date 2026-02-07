@@ -46,9 +46,9 @@ class DETRVAE(nn.Module):
         super().__init__()
         self.num_queries = num_queries
         self.camera_names = camera_names
-        self.transformer = transformer
-        self.encoder = encoder
-        hidden_dim = transformer.d_model
+        self.transformer = transformer   # CVAE decoder
+        self.encoder = encoder           # CVAE encoder
+        hidden_dim = transformer.d_model # 512
         self.action_head = nn.Linear(hidden_dim, state_dim)
         self.is_pad_head = nn.Linear(hidden_dim, 1)
         self.query_embed = nn.Embedding(num_queries, hidden_dim)
