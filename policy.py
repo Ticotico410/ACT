@@ -1,3 +1,4 @@
+import torch
 import torch.nn as nn
 from torch.nn import functional as F
 import torchvision.transforms as transforms
@@ -25,12 +26,16 @@ class ACTPolicy(nn.Module):
             is_pad = is_pad[:, :self.model.num_queries]
 
             a_hat, is_pad_hat, (mu, logvar) = self.model(qpos, image, env_state, actions, is_pad)
-            total_kld, dim_wise_kld, mean_kld = kl_divergence(mu, logvar)
             loss_dict = dict()
             all_l1 = F.l1_loss(actions, a_hat, reduction='none')
             l1 = (all_l1 * ~is_pad.unsqueeze(-1)).mean()
             loss_dict['l1'] = l1
-            loss_dict['kl'] = total_kld[0]
+            # Calculate KL divergence if mu and logvar are available, otherwise set to 0
+            if mu is not None and logvar is not None:
+                total_kld = kl_divergence(mu, logvar)
+                loss_dict['kl'] = total_kld[0]
+            else:
+                loss_dict['kl'] = torch.tensor(0.0).to(l1.device)
             loss_dict['loss'] = loss_dict['l1'] + loss_dict['kl'] * self.kl_weight
             return loss_dict
         else: # inference time

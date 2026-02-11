@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 from copy import deepcopy
 from tqdm import tqdm
 from einops import rearrange
+import time
 
 from constants import DT
 from constants import PUPPET_GRIPPER_JOINT_OPEN
@@ -51,8 +52,8 @@ def main(args):
     lr_backbone = 1e-5
     backbone = 'resnet18'
     if policy_class == 'ACT':
-        enc_layers = 4
-        dec_layers = 7
+        enc_layers = 2
+        dec_layers = 4
         nheads = 8
         policy_config = {'lr': args['lr'],
                          'num_queries': args['chunk_size'],
@@ -246,7 +247,13 @@ def eval_bc(config, ckpt_name, save_episode=True):
                 ### query policy
                 if config['policy_class'] == "ACT":
                     if t % query_frequency == 0:
+                        # Measure inference time
+                        torch.cuda.synchronize()
+                        start_time = time.time()
                         all_actions = policy(qpos, curr_image)
+                        torch.cuda.synchronize()
+                        inference_time = (time.time() - start_time) * 1000  # Convert to ms
+                        print(f'[t={t}] Inference time: {inference_time:.2f} ms')
                     if temporal_agg:
                         all_time_actions[[t], t:t+num_queries] = all_actions
                         actions_for_curr_step = all_time_actions[:, t]
