@@ -1,7 +1,7 @@
 import pathlib
 
 ### Task parameters
-DATA_DIR = '/home/ycb410/ERL/ycb_ws/ACT/datasets'
+DATA_DIR = '/home/ycb410/ycb_ws/ACT/datasets'
 SIM_TASK_CONFIGS = {
     'sim_transfer_cube_scripted':{
         'dataset_dir': DATA_DIR + '/sim_transfer_cube_scripted',
@@ -19,7 +19,7 @@ SIM_TASK_CONFIGS = {
 
     'sim_insertion_scripted': {
         'dataset_dir': DATA_DIR + '/sim_insertion_scripted',
-        'num_episodes': 50,
+        'num_episodes': 20,
         'episode_len': 400,
         'camera_names': ['top']
     },
