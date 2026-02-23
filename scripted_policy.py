@@ -78,7 +78,7 @@ class PickPolicy(BasePolicy):
 
         self.trajectory = [
             {"t": 0, "xyz": init_mocap_pose[:3], "quat": init_mocap_pose[3:], "gripper": 1},                        # sleep
-            {"t": 50, "xyz": box_xyz + np.array([0, 0, 0.20]), "quat": gripper_pick_quat.elements, "gripper": 1},  # approach the cube
+            {"t": 50, "xyz": box_xyz + np.array([0, 0, 0.20]), "quat": gripper_pick_quat.elements, "gripper": 1},   # approach the cube
             {"t": 100, "xyz": box_xyz + np.array([0, 0, -0.05]), "quat": gripper_pick_quat.elements, "gripper": 1}, # go down
             {"t": 250, "xyz": box_xyz, "quat": gripper_pick_quat.elements, "gripper": 0},                           # close gripper                        
             {"t": 400, "xyz": target_pos, "quat": gripper_pick_quat.elements, "gripper": 0},                        # move to target point   
@@ -105,8 +105,8 @@ def test_policy(task_name):
         # print(f"reset")
         # print(f"qpos: {ts.observation['qpos']}")
         # print(f"mocap pose: {ts.observation['mocap_pose']}")
-        # print(f"reset gripper base link pos: {physics.named.data.xpos['gripper_base_link']}\n")
-        # print(f"tracking error: {np.abs(ts.observation['mocap_pose'][2] - physics.named.data.xpos['gripper_base_link'][2])}\n")
+        # print(f"reset EE (link7) pos: {physics.named.data.xpos['link7']}\n")
+        # print(f"tracking error: {np.abs(ts.observation['mocap_pose'][2] - physics.named.data.xpos['link7'][2])}\n")
 
         if onscreen_render:
             ax = plt.subplot()
@@ -124,10 +124,10 @@ def test_policy(task_name):
                 # print(f"ts={step}")
                 # print(f"qpos: {ts.observation['qpos']}")
                 # print(f"action: {action}")
-                # print(f"gripper base link pos: {physics.named.data.xpos['xarm_gripper_base_link']}\n")
-                err_x = np.abs(ts.observation['mocap_pose'][0] - physics.named.data.xpos['xarm_gripper_base_link'][0])
-                err_y = np.abs(ts.observation['mocap_pose'][1] - physics.named.data.xpos['xarm_gripper_base_link'][1])
-                err_z = np.abs(ts.observation['mocap_pose'][2] - physics.named.data.xpos['xarm_gripper_base_link'][2])
+                # print(f"EE (link7) pos: {physics.named.data.xpos['link7']}\n")
+                err_x = np.abs(ts.observation['mocap_pose'][0] - physics.named.data.xpos['link7'][0])
+                err_y = np.abs(ts.observation['mocap_pose'][1] - physics.named.data.xpos['link7'][1])
+                err_z = np.abs(ts.observation['mocap_pose'][2] - physics.named.data.xpos['link7'][2])
                 # print(f"mocap error: x: {err_x:.3f}, y: {err_y:.3f}, z: {err_z:.3f}\n")
             if onscreen_render:
                 plt_img.set_data(ts.observation['images']['angle'])

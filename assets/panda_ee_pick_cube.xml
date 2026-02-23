@@ -1,0 +1,42 @@
+<mujoco model="panda_ee_pick_cube">
+    <include file="scene.xml"/>
+    <include file="panda_dependencies.xml"/>
+    <option gravity="0 0 0"/>
+
+    <equality>
+        <weld body1="mocap" body2="link7" relpose="0 0 0 1 0 0 0" solref="0.01 1" solimp="0.25 0.25 0.001" />
+    </equality>
+
+    <worldbody>
+        <include file="panda_arm.xml" />
+        <body mocap="true" name="mocap" pos="0.04550052 0.59999593 0.73150243">
+            <site pos="0 0 0" size="0.003 0.003 0.03" type="box" name="mocap_site1" rgba="1 0 1 1"/>
+            <site pos="0 0 0" size="0.003 0.03 0.003" type="box" name="mocap_site2" rgba="1 0 1 1"/>
+            <site pos="0 0 0" size="0.03 0.003 0.003" type="box" name="mocap_site3" rgba="1 0 1 1"/>
+        </body>
+
+        <body name="red_box" pos="-0.1 0.5 0.05">
+            <joint name="red_box_joint" type="free" frictionloss="0.01" />
+            <inertial pos="0 0 0" mass="0.05" diaginertia="0.002 0.002 0.002" />
+            <geom condim="4" solimp="2 1 0.01" solref="0.01 1" friction="1 0.005 0.0001" pos="0 0 0" size="0.02 0.02 0.02" type="box" name="red_box" rgba="1 0 0 1" />
+        </body>
+
+        <!-- Goal point -->
+        <body name="target_point" pos="0.1 0.4 0.1">
+            <site pos="0 0 0" size="0.015" type="sphere" name="target_site" rgba="0 1 0 1"/>
+            <geom pos="0 0 0" size="0.01 0.002" type="cylinder" name="target_marker" 
+                  rgba="0 1 0 0.8" contype="0" conaffinity="0" group="2" mass="0"/>
+        </body>
+    </worldbody>
+
+    <actuator>
+        <position name="gripper_left" joint="finger_joint1" kp="500" ctrllimited="true" ctrlrange="0 0.04"/>
+        <position name="gripper_right" joint="finger_joint2" kp="500" ctrllimited="true" ctrlrange="0 0.04"/>
+    </actuator>
+
+    <keyframe>
+        <key name="home" qpos="0 0 0 -1.57079 0 1.57079 -0.7853 0.04 0.04   0.0 0.5 0.05 1 0 0 0"/>
+    </keyframe>
+
+</mujoco>
+

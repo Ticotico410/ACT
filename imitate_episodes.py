@@ -47,7 +47,7 @@ def main(args):
     camera_names = task_config['camera_names']
 
     # fixed parameters
-    state_dim = 8  # xarm7: 7 joints + 1 gripper
+    state_dim = 8  # panda: 7 joints + 1 gripper
     lr_backbone = 1e-5
     backbone = 'resnet18'
     if policy_class == 'ACT':

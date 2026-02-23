@@ -10,6 +10,10 @@ from constants import DT, XML_DIR, START_ARM_POSE
 from constants import PUPPET_GRIPPER_POSITION_UNNORMALIZE_FN
 from constants import PUPPET_GRIPPER_POSITION_NORMALIZE_FN
 from constants import PUPPET_GRIPPER_VELOCITY_NORMALIZE_FN
+from constants import PUPPET_GRIPPER_POSITION_OPEN
+
+# panda_pick_cube gripper is actuator8 (tendon), ctrlrange 0--255; physical joint range 0--0.04
+GRIPPER_POS_TO_CTRL = 255.0 / PUPPET_GRIPPER_POSITION_OPEN  # 0.04 -> 255
 
 import IPython
 e = IPython.embed
@@ -18,7 +22,7 @@ BOX_POSE = [None] # to be changed from outside
 
 def make_sim_env(task_name):
     """
-    Environment for simulated XArm7 manipulation, with joint position control
+    Environment for simulated Panda manipulation, with joint position control
     Action space:      [arm_qpos (7),            # absolute joint position
                         gripper_positions (1),]  # normalized gripper position (0: close, 1: open)
 
@@ -29,7 +33,7 @@ def make_sim_env(task_name):
                         "images": {"main": (480x640x3)}        # h, w, c, dtype='uint8'
     """
     if 'sim_pick_cube' in task_name:
-        xml_path = os.path.join(XML_DIR, f'xarm7_pick_cube.xml')
+        xml_path = os.path.join(XML_DIR, f'panda_pick_cube.xml')
         physics = mujoco.Physics.from_xml_path(xml_path)
         task = PickCubeTask(random=False)
         env = control.Environment(physics, task, time_limit=20, control_timestep=DT,
@@ -38,7 +42,7 @@ def make_sim_env(task_name):
         raise NotImplementedError
     return env
 
-class XArm7Task(base.Task):
+class PandaTask(base.Task):
     def __init__(self, random=None):
         super().__init__(random=random)
 
@@ -46,9 +50,11 @@ class XArm7Task(base.Task):
         arm_action = action[:7]
         normalized_gripper_action = action[7]
 
-        gripper_action = PUPPET_GRIPPER_POSITION_UNNORMALIZE_FN(normalized_gripper_action)
+        gripper_pos = PUPPET_GRIPPER_POSITION_UNNORMALIZE_FN(normalized_gripper_action)
+        # panda_pick_cube: actuator8 (tendon) expects ctrl in [0, 255], not [0, 0.04]
+        gripper_ctrl = gripper_pos * GRIPPER_POS_TO_CTRL
 
-        env_action = np.concatenate([arm_action, np.array([gripper_action])])
+        env_action = np.concatenate([arm_action, np.array([gripper_ctrl])])
         super().before_step(env_action, physics)
         return
 
@@ -93,7 +99,7 @@ class XArm7Task(base.Task):
         pass
 
 
-class PickCubeTask(XArm7Task):
+class PickCubeTask(PandaTask):
     def __init__(self, random=None):
         super().__init__(random=random)
         self.max_reward = 4
@@ -101,10 +107,11 @@ class PickCubeTask(XArm7Task):
     def initialize_episode(self, physics):
         """Sets the state of the environment at the start of each episode."""
         # TODO Notice: this function does not randomize the env configuration. Instead, set BOX_POSE from outside
-        # reset qpos, control and box position
+        # reset qpos (9: 7 arm + 2 finger), ctrl (8: 7 arm + 1 gripper tendon), and box position
         with physics.reset_context():
-            physics.named.data.qpos[:8] = START_ARM_POSE
-            np.copyto(physics.data.ctrl, START_ARM_POSE)
+            physics.named.data.qpos[:9] = START_ARM_POSE
+            physics.data.ctrl[:7] = START_ARM_POSE[:7]
+            physics.data.ctrl[7] = START_ARM_POSE[7] * GRIPPER_POS_TO_CTRL  # 0.04 -> 255 for actuator8
             assert BOX_POSE[0] is not None
             physics.named.data.qpos[-7:] = BOX_POSE[0]
             # print(f"{BOX_POSE=}")
@@ -143,7 +150,6 @@ def print_mujoco_info():
     physics = env._physics
     print(f"qpos: {physics.data.qpos}, shape: {physics.data.qpos.shape}")
     print(f"qvel: {physics.data.qvel}, shape: {physics.data.qvel.shape}")
-    print(f"drive joint idx: {physics.model.name2id('drive_joint', 'joint')}")
 
 if __name__ == '__main__':
     BOX_POSE[0] = [0.2, 0.5, 0.05, 1, 0, 0, 0]

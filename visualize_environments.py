@@ -18,8 +18,16 @@ def _apply_keyframe_or_reset(physics):
 
 
 def visualize_xml(xml_filename, use_viewer=True):
-    xml_path = os.path.join(XML_DIR, xml_filename)
+    # 支持：仅文件名（在 XML_DIR 下）、或相对路径 assets/xxx.xml、或绝对路径
+    if os.path.isabs(xml_filename):
+        xml_path = xml_filename
+    elif xml_filename.startswith("assets" + os.sep) or xml_filename.startswith("assets/"):
+        xml_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), xml_filename)
+    else:
+        xml_path = os.path.join(XML_DIR, xml_filename)
+    xml_path = os.path.normpath(xml_path)
     if not os.path.exists(xml_path):
+        print(f"文件不存在: {xml_path}")
         return
 
     from dm_control import mujoco
@@ -28,6 +36,7 @@ def visualize_xml(xml_filename, use_viewer=True):
 
     with open(xml_path, 'r') as f:
         if f.read().strip().startswith('<mujocoinclude>'):
+            print(f"跳过 include 片段（非完整模型）: {xml_path}")
             return
 
     physics = mujoco.Physics.from_xml_path(xml_path)

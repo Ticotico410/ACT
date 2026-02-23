@@ -16,22 +16,21 @@ DT = 0.02
 JOINT_NAMES = ["joint1", "joint2", "joint3", "joint4", "joint5", "joint6", "joint7"]
 
 # 7 revolute joints qpos + 1 gripper drive joint qpos (open)
-START_ARM_POSE = [0.0, -0.247, 0.0, 0.909, 0.0, 1.15644, 0.0, 0.0]
+START_ARM_POSE = [0, 0, 0, -1.57079, 0, 1.57079, -0.7853, 0.04, 0.04]
 
 XML_DIR = str(pathlib.Path(__file__).parent.resolve()) + '/assets/' # note: absolute path
 
-# xarm6 gripper position limits (qpos[7])
-MASTER_GRIPPER_POSITION_OPEN = 0.0
-MASTER_GRIPPER_POSITION_CLOSE = 0.85
-PUPPET_GRIPPER_POSITION_OPEN = 0.0
-PUPPET_GRIPPER_POSITION_CLOSE = 0.85
+# Panda gripper position limits
+MASTER_GRIPPER_POSITION_OPEN = 0.04
+MASTER_GRIPPER_POSITION_CLOSE = 0.0
+PUPPET_GRIPPER_POSITION_OPEN = 0.04
+PUPPET_GRIPPER_POSITION_CLOSE = 0.0
 
-# XArm7 gripper joint limits (qpos[7] = left_driver_joint)
-# For XArm7, joint and position are the same (qpos[7] directly controls the gripper)
-MASTER_GRIPPER_JOINT_OPEN = 0.0
-MASTER_GRIPPER_JOINT_CLOSE = 0.85
-PUPPET_GRIPPER_JOINT_OPEN = 0.0
-PUPPET_GRIPPER_JOINT_CLOSE = 0.85
+# Panda gripper joint limits
+MASTER_GRIPPER_JOINT_OPEN = 0.04
+MASTER_GRIPPER_JOINT_CLOSE = 0.0
+PUPPET_GRIPPER_JOINT_OPEN = 0.04
+PUPPET_GRIPPER_JOINT_CLOSE = 0.0
 
 
 

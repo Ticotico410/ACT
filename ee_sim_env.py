@@ -19,7 +19,7 @@ e = IPython.embed
 
 def make_ee_sim_env(task_name):
     """
-    Environment for simulated XArm6 manipulation, with end-effector control.
+    Environment for simulated Panda manipulation, with end-effector control.
     Action space:      [arm_pose (7),             # position and quaternion for end effector
                         gripper_positions (1),]   # normalized gripper position (0: close, 1: open)
 
@@ -30,7 +30,7 @@ def make_ee_sim_env(task_name):
                         "images": {"main": (480x640x3)}        # h, w, c, dtype='uint8'
     """
     if 'sim_pick_cube' in task_name:
-        xml_path = os.path.join(XML_DIR, f'xarm7_ee_pick_cube.xml')
+        xml_path = os.path.join(XML_DIR, f'panda_ee_pick_cube.xml')
         physics = mujoco.Physics.from_xml_path(xml_path)
         task = PickCubeEETask(random=False)
         env = control.Environment(physics, task, time_limit=20, control_timestep=DT, n_sub_steps=None, flat_observation=False)
@@ -38,7 +38,7 @@ def make_ee_sim_env(task_name):
         raise NotImplementedError
     return env
 
-class XArm7EETask(base.Task):
+class PandaEETask(base.Task):
     def __init__(self, random=None):
         super().__init__(random=random)
 
@@ -49,22 +49,22 @@ class XArm7EETask(base.Task):
 
         # set gripper
         g_ctrl = PUPPET_GRIPPER_POSITION_UNNORMALIZE_FN(action[7])
-        np.copyto(physics.data.ctrl, np.array([g_ctrl]))
+        np.copyto(physics.data.ctrl, np.array([g_ctrl, g_ctrl]))
 
     def initialize_robots(self, physics):
         # reset joint position
-        physics.named.data.qpos[:8] = START_ARM_POSE
+        physics.named.data.qpos[:9] = START_ARM_POSE
 
         # reset mocap to align with end effector
         # to obtain these numbers:
         # (1) make an ee_sim env and reset to the same start_pose
         # (2) get env._physics.named.data.xpos['gripper_base_link']
         #     get env._physics.named.data.xquat['gripper_base_link']
-        np.copyto(physics.data.mocap_pos[0], [0.10008518, 0.49999706, 0.39980931])
+        np.copyto(physics.data.mocap_pos[0], [0.04550052, 0.59999593, 0.53150243])
         np.copyto(physics.data.mocap_quat[0], [1, 0, 0, 0])
 
-        # reset gripper control
-        close_gripper_control = np.array([PUPPET_GRIPPER_POSITION_CLOSE])
+        # reset gripper control (both fingers; range 0=close, 0.04=open per panda_arm finger joint)
+        close_gripper_control = np.array([PUPPET_GRIPPER_POSITION_CLOSE, PUPPET_GRIPPER_POSITION_CLOSE])
         np.copyto(physics.data.ctrl, close_gripper_control)
 
     def initialize_episode(self, physics):
@@ -113,7 +113,7 @@ class XArm7EETask(base.Task):
         pass
 
 
-class PickCubeEETask(XArm7EETask):
+class PickCubeEETask(PandaEETask):
     def __init__(self, random=None):
         super().__init__(random=random)
         self.max_reward = 4
@@ -161,11 +161,11 @@ if __name__ == '__main__':
     env.reset()
     physics = env._physics
 
-    print(f"mocap pos: {physics.named.data.xpos['xarm_gripper_base_link']}")   
-    print(f"mocap quat: {physics.named.data.xquat['xarm_gripper_base_link']}")
+    print(f"mocap pos: {physics.named.data.xpos['link7']}")   
+    print(f"mocap quat: {physics.named.data.xquat['link7']}")
     print(f"qpos: {physics.data.qpos}, shape: {physics.data.qpos.shape}")
     print(f"qvel: {physics.data.qvel}, shape: {physics.data.qvel.shape}")
-    print(f"left drive joint idx: {physics.model.name2id('left_driver_joint', 'joint')}")
-    print(f"right drive joint idx: {physics.model.name2id('right_driver_joint', 'joint')}\n")
+    print(f"left drive joint idx: {physics.model.name2id('finger_joint1', 'joint')}")
+    print(f"right drive joint idx: {physics.model.name2id('finger_joint2', 'joint')}\n")
 
  

@@ -72,7 +72,7 @@ def main(args):
 
         joint_traj = [ts.observation['qpos'] for ts in episode]
         # replace gripper pose with gripper control
-        # For xarm7: qpos has 8 elements (7 joints + 1 gripper), gripper_ctrl has 1 element
+        # For panda: qpos has 8 elements (7 joints + 1 gripper), gripper_ctrl has 1 element
         gripper_ctrl_traj = [ts.observation['gripper_ctrl'] for ts in episode]
         for joint, ctrl in zip(joint_traj, gripper_ctrl_traj):
             # Normalize gripper control value (qpos value) to [0, 1] range
@@ -165,7 +165,7 @@ def main(args):
                                          chunks=(1, 480, 640, 3), )
             # compression='gzip',compression_opts=2,)
             # compression=32001, compression_opts=(0, 0, 0, 0, 9, 1, 1), shuffle=False)
-            # Get dimension from first observation (8 for xarm7: 7 joints + 1 gripper)
+            # Get dimension from first observation (8 for panda: 7 joints + 1 gripper)
             qpos_dim = len(episode_replay[0].observation['qpos'])
             qpos = obs.create_dataset('qpos', (max_timesteps, 8))
             qvel = obs.create_dataset('qvel', (max_timesteps, 8))
