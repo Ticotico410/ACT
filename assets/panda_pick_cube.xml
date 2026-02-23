@@ -3,7 +3,7 @@
     <include file="panda_dependencies.xml"/>
 
     <worldbody>
-        <include file="panda_arm.xml" />
+        <include file="panda.xml" />
         <body mocap="true" name="mocap" pos="0.04550052 0.59999593 0.53150243">
             <site pos="0 0 0" size="0.003 0.003 0.03" type="box" name="mocap_site1" rgba="1 0 0 1"/>
             <site pos="0 0 0" size="0.003 0.03 0.003" type="box" name="mocap_site2" rgba="1 0 0 1"/>

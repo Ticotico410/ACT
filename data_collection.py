@@ -4,7 +4,6 @@ import os
 import tempfile
 import time
 import xml.etree.ElementTree as ET
-from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
@@ -12,61 +11,25 @@ import h5py
 import mujoco
 import mujoco.viewer
 import numpy as np
+from utils import sample_box_pose
 
+"""
+python data_collection.py --model assets/panda_ee_pick_cube.xml --save-dir datasets/sim_pick_cube_scripted --camera-names top,angle
+"""
 
 SPACE_KEYS = {32}
 ENTER_KEYS = {13, 257}
 ESC_KEYS = {27, 256}
-GRIPPER_OPEN_KEYS = {81, 113}   # Q / q 张开
-GRIPPER_CLOSE_KEYS = {69, 101}  # E / e 闭合
-MAX_GRIPPER_STEP = 0.0002       # 每步最大开合增量（越小越慢）
-
-
-def _ensure_mocap_selectable(xml_path: Path) -> Tuple[Path, Optional[Path]]:
-    """If mocap body has no geom, create a temporary XML with a visible pick helper geom."""
-    tree = ET.parse(str(xml_path))
-    root = tree.getroot()
-    mocap_body = root.find(".//body[@mocap='true']")
-    if mocap_body is None:
-        return xml_path, None
-
-    geoms = mocap_body.findall("geom")
-    changed = False
-    if not geoms:
-        ET.SubElement(
-            mocap_body,
-            "geom",
-            {
-                "name": "mocap_pick_helper",
-                "type": "sphere",
-                "size": "0.02",
-                "rgba": "1 0 1 0.45",
-                "contype": "0",
-                "conaffinity": "0",
-                "group": "0",
-            },
-        )
-        changed = True
-
-    if not changed:
-        return xml_path, None
-
-    fd, temp_name = tempfile.mkstemp(
-        prefix=f"{xml_path.stem}_mocap_pickable_",
-        suffix=".xml",
-        dir=str(xml_path.parent),
-    )
-    os.close(fd)
-    Path(temp_name).write_text(ET.tostring(root, encoding="unicode"), encoding="utf-8")
-    return Path(temp_name), Path(temp_name)
-
+GRIPPER_OPEN_KEYS = {69, 101}   # E: Open 
+GRIPPER_CLOSE_KEYS = {82, 114}  # R: Close
+MAX_GRIPPER_STEP = 0.0002       # Maximum gripper step size
 
 def _find_mocap_id(model: mujoco.MjModel) -> int:
     for body_id in range(model.nbody):
         mocap_id = int(model.body_mocapid[body_id])
         if mocap_id >= 0:
             return mocap_id
-    raise RuntimeError("模型中未找到 mocap body。")
+    raise RuntimeError("No mocap body found in the model.")
 
 
 def _find_mocap_body_id(model: mujoco.MjModel) -> int:
@@ -148,23 +111,26 @@ def _next_episode_index(save_dir: Path) -> int:
     return max_idx + 1
 
 
-def _normalize_gripper_position(model: mujoco.MjModel, qpos: np.ndarray, qvel: np.ndarray) -> Tuple[float, float]:
-    jid = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_JOINT, "finger_joint1")
-    if jid < 0:
-        return 0.0, 0.0
-    low, high = model.jnt_range[jid]
-    span = max(high - low, 1e-8)
-    qpos_norm = float((qpos[7] - low) / span)
-    qvel_norm = float(qvel[7] / span)
-    return qpos_norm, qvel_norm
-
-
 def _gripper_range(model: mujoco.MjModel) -> Tuple[float, float]:
     jid = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_JOINT, "finger_joint1")
     if jid < 0:
         return 0.0, 1.0
     low, high = model.jnt_range[jid]
     return float(low), float(high)
+
+
+def _randomize_red_box_pose(model: mujoco.MjModel, data: mujoco.MjData) -> bool:
+    """Randomize red_box free-joint pose using utils.sample_box_pose()."""
+    jid = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_JOINT, "red_box_joint")
+    if jid < 0:
+        return False
+
+    qpos_adr = int(model.jnt_qposadr[jid])
+    dof_adr = int(model.jnt_dofadr[jid])
+    pose = sample_box_pose().astype(np.float64)  # [x, y, z, qw, qx, qy, qz]
+    data.qpos[qpos_adr : qpos_adr + 7] = pose
+    data.qvel[dof_adr : dof_adr + 6] = 0.0
+    return True
 
 
 def _save_episode_hdf5(
@@ -174,15 +140,21 @@ def _save_episode_hdf5(
     height: int,
     width: int,
 ) -> None:
+    # 严格对齐 ACT baseline 的保存结构（参考 record_sim_episodes.py）
     max_timesteps = len(data_buf["action"])
     if max_timesteps == 0:
         print(f"[save] 跳过空 episode: {save_path.name}")
         return
 
+    qpos_arr = np.asarray(data_buf["qpos"], dtype=np.float64)
+    qvel_arr = np.asarray(data_buf["qvel"], dtype=np.float64)
+    action_arr = np.asarray(data_buf["action"], dtype=np.float64)
+    qpos_dim = qpos_arr.shape[1]
+    qvel_dim = qvel_arr.shape[1]
+    action_dim = action_arr.shape[1]
+
     with h5py.File(str(save_path), "w", rdcc_nbytes=1024 ** 2 * 2) as root:
         root.attrs["sim"] = True
-        root.create_dataset("timestamp", data=np.asarray(data_buf["timestamp"], dtype=np.float64))
-
         obs = root.create_group("observations")
         image = obs.create_group("images")
         for cam_name in camera_names:
@@ -195,18 +167,97 @@ def _save_episode_hdf5(
             )
             ds[...] = cam_arr
 
-        obs.create_dataset("qpos", data=np.asarray(data_buf["qpos"], dtype=np.float64))
-        obs.create_dataset("qvel", data=np.asarray(data_buf["qvel"], dtype=np.float64))
-        root.create_dataset("action", data=np.asarray(data_buf["action"], dtype=np.float64))
+        qpos_ds = obs.create_dataset("qpos", (max_timesteps, qpos_dim))
+        qvel_ds = obs.create_dataset("qvel", (max_timesteps, qvel_dim))
+        action_ds = root.create_dataset("action", (max_timesteps, action_dim))
 
-        # 额外保存调试/对齐信息
-        obs.create_dataset("mocap_pose", data=np.asarray(data_buf["mocap_pose"], dtype=np.float64))
-        obs.create_dataset("ee_pose", data=np.asarray(data_buf["ee_pose"], dtype=np.float64))
-        root.create_dataset("ctrl", data=np.asarray(data_buf["ctrl"], dtype=np.float64))
-        root.create_dataset("raw_qpos", data=np.asarray(data_buf["raw_qpos"], dtype=np.float64))
-        root.create_dataset("raw_qvel", data=np.asarray(data_buf["raw_qvel"], dtype=np.float64))
+        qpos_ds[...] = qpos_arr
+        qvel_ds[...] = qvel_arr
+        action_ds[...] = action_arr
 
     print(f"[save] 已保存: {save_path}")
+    print(f"[save] episode_len={max_timesteps}")
+
+
+def _init_episode_writer(
+    save_path: Path,
+    camera_names: List[str],
+    height: int,
+    width: int,
+    qpos_dim: int = 8,
+    qvel_dim: int = 8,
+    action_dim: int = 8,
+) -> Dict[str, object]:
+    root = h5py.File(str(save_path), "w", rdcc_nbytes=1024 ** 2 * 2)
+    root.attrs["sim"] = True
+    obs = root.create_group("observations")
+    image = obs.create_group("images")
+    image_ds: Dict[str, h5py.Dataset] = {}
+    for cam_name in camera_names:
+        image_ds[cam_name] = image.create_dataset(
+            cam_name,
+            shape=(0, height, width, 3),
+            maxshape=(None, height, width, 3),
+            dtype="uint8",
+            chunks=(1, height, width, 3),
+        )
+    qpos_ds = obs.create_dataset(
+        "qpos", shape=(0, qpos_dim), maxshape=(None, qpos_dim), dtype="float64", chunks=(1, qpos_dim)
+    )
+    qvel_ds = obs.create_dataset(
+        "qvel", shape=(0, qvel_dim), maxshape=(None, qvel_dim), dtype="float64", chunks=(1, qvel_dim)
+    )
+    action_ds = root.create_dataset(
+        "action", shape=(0, action_dim), maxshape=(None, action_dim), dtype="float64", chunks=(1, action_dim)
+    )
+    return {
+        "root": root,
+        "path": save_path,
+        "len": 0,
+        "qpos": qpos_ds,
+        "qvel": qvel_ds,
+        "action": action_ds,
+        "images": image_ds,
+    }
+
+
+def _append_episode_frame(
+    writer: Dict[str, object],
+    qpos_8: np.ndarray,
+    qvel_8: np.ndarray,
+    action_8: np.ndarray,
+    image_map: Dict[str, np.ndarray],
+) -> None:
+    idx = int(writer["len"])
+    qpos_ds: h5py.Dataset = writer["qpos"]  # type: ignore[assignment]
+    qvel_ds: h5py.Dataset = writer["qvel"]  # type: ignore[assignment]
+    action_ds: h5py.Dataset = writer["action"]  # type: ignore[assignment]
+    image_ds: Dict[str, h5py.Dataset] = writer["images"]  # type: ignore[assignment]
+
+    qpos_ds.resize((idx + 1, qpos_ds.shape[1]))
+    qvel_ds.resize((idx + 1, qvel_ds.shape[1]))
+    action_ds.resize((idx + 1, action_ds.shape[1]))
+    qpos_ds[idx] = qpos_8
+    qvel_ds[idx] = qvel_8
+    action_ds[idx] = action_8
+
+    for cam_name, img in image_map.items():
+        ds = image_ds[cam_name]
+        ds.resize((idx + 1, ds.shape[1], ds.shape[2], ds.shape[3]))
+        ds[idx] = img
+
+    writer["len"] = idx + 1
+
+
+def _finalize_episode_writer(writer: Dict[str, object]) -> int:
+    root: h5py.File = writer["root"]  # type: ignore[assignment]
+    path: Path = writer["path"]  # type: ignore[assignment]
+    episode_len = int(writer["len"])
+    root.flush()
+    root.close()
+    print(f"[save] 已保存: {path}")
+    print(f"[save] episode_len={episode_len}")
+    return episode_len
 
 
 def _add_label_geom(
@@ -291,11 +342,7 @@ def main() -> None:
     if not camera_names:
         camera_names = ["top"]
 
-    load_path, temp_xml = _ensure_mocap_selectable(model_path)
-    if temp_xml is not None:
-        print(f"[info] 已自动为 mocap 增加可选取 geom: {temp_xml}")
-
-    model = mujoco.MjModel.from_xml_path(str(load_path))
+    model = mujoco.MjModel.from_xml_path(str(model_path))
     _enable_robot_gravcomp(model, root_body_name="link0", value=float(np.clip(args.robot_gravcomp, 0.0, 1.0)))
     data = mujoco.MjData(model)
     renderer = mujoco.Renderer(model, height=args.height, width=args.width)
@@ -304,6 +351,7 @@ def main() -> None:
         mujoco.mj_resetDataKeyframe(model, data, 0)
     else:
         mujoco.mj_resetData(model, data)
+    _randomize_red_box_pose(model, data)
     mujoco.mj_forward(model, data)
 
     mocap_id = _find_mocap_id(model)
@@ -323,7 +371,7 @@ def main() -> None:
     print(f"[info] EE 跟踪对象: {ee_kind} '{ee_name}'")
     print("[info] 鼠标拖动: 先选中 mocap，按住 Ctrl + 鼠标右键拖拽平移")
     print(f"[info] mocap 姿态已锁定为固定四元数: {np.array2string(fixed_mocap_quat, precision=6)}")
-    print("[info] Space: 开始/暂停记录 | Enter: 保存当前 episode | Q: 张开夹爪 | E: 闭合夹爪 | Esc: 退出")
+    print("[info] Space: 开始/暂停记录 | Enter: 保存当前 episode | E: 张开夹爪 | R: 闭合夹爪 | Esc: 退出")
 
     flags = {"recording": False, "save": False, "exit": False}
     grip_low, grip_high = _gripper_range(model)
@@ -331,23 +379,7 @@ def main() -> None:
     gripper_value = float(np.clip(data.qpos[7], grip_low, grip_high))
     gripper_target = gripper_value
 
-    data_buf: Dict[str, List[np.ndarray]] = {
-        "timestamp": [],
-        "qpos": [],
-        "qvel": [],
-        "action": [],
-        "mocap_pose": [],
-        "ee_pose": [],
-        "ctrl": [],
-        "raw_qpos": [],
-        "raw_qvel": [],
-    }
-    for cam_name in camera_names:
-        data_buf[f"images/{cam_name}"] = []
-
-    def _clear_buffer() -> None:
-        for k in data_buf:
-            data_buf[k].clear()
+    writer: Optional[Dict[str, object]] = None
 
     def key_callback(keycode: int) -> None:
         nonlocal gripper_target
@@ -362,10 +394,10 @@ def main() -> None:
             print("\n[key] Esc -> 退出")
         elif keycode in GRIPPER_OPEN_KEYS:
             gripper_target = grip_high
-            print(f"\n[key] Q -> 夹爪张开目标 ({gripper_target:.4f})")
+            print(f"\n[key] E -> 夹爪张开目标 ({gripper_target:.4f})")
         elif keycode in GRIPPER_CLOSE_KEYS:
             gripper_target = grip_low
-            print(f"\n[key] E -> 夹爪闭合目标 ({gripper_target:.4f})")
+            print(f"\n[key] R -> 夹爪闭合目标 ({gripper_target:.4f})")
 
     last_print_t = 0.0
     mocap_initialized_after_viewer_sync = False
@@ -405,63 +437,65 @@ def main() -> None:
             ee_pos, ee_quat = _get_ee_pose(data, ee_kind, ee_id)
             pos_err = float(np.linalg.norm(mocap_pos - ee_pos))
 
-            # 4) GUI 叠加 + 控制台实时输出（便于复制日志）
+            # 4) 仅做 GUI 叠加（终端不再每帧打印，避免刷屏）
             _update_overlay_labels(viewer, mocap_pos, mocap_quat, ee_pos, ee_quat, pos_err)
-            now = time.time()
-            if now - last_print_t > 0.1:
-                print(
-                    f"\rrec={int(flags['recording'])} t={data.time:8.3f} "
-                    f"mocap_pos={np.array2string(mocap_pos, precision=4)} "
-                    f"mocap_quat={np.array2string(mocap_quat, precision=4)} "
-                    f"ee_pos={np.array2string(ee_pos, precision=4)} "
-                    f"ee_quat={np.array2string(ee_quat, precision=4)} "
-                    f"pos_err={pos_err:.5f} "
-                    f"grip={gripper_value:.4f}",
-                    end="",
-                    flush=True,
-                )
-                last_print_t = now
 
             if flags["recording"]:
-                qpos_norm_grip, qvel_norm_grip = _normalize_gripper_position(model, data.qpos, data.qvel)
-                qpos_8 = np.concatenate([data.qpos[:7].copy(), np.array([qpos_norm_grip])])
-                qvel_8 = np.concatenate([data.qvel[:7].copy(), np.array([qvel_norm_grip])])
+                if writer is None:
+                    save_path = save_dir / f"episode_{episode_idx}.hdf5"
+                    writer = _init_episode_writer(
+                        save_path=save_path,
+                        camera_names=camera_names,
+                        height=args.height,
+                        width=args.width,
+                        qpos_dim=8,
+                        qvel_dim=8,
+                        action_dim=8,
+                    )
 
-                # 手动拖拽采集没有策略动作，这里按 ACT 数据格式写 8 维 action，占位为当前状态指令
+                # 严格对齐 ACT baseline：qpos/qvel/action 均使用物理量（m / rad / rad·s⁻¹）
+                # qpos[:7] 7 个臂关节角度（rad），qpos[7] 为 finger_joint1 位置（m，范围 0~0.04）
+                qpos_8 = data.qpos[:8].copy()
+                qvel_8 = data.qvel[:8].copy()
+
+                # action = 当前时刻期望的关节目标（与 record_sim_episodes.py 保存格式一致）
                 action_8 = qpos_8.copy()
-                # 记录的是当前实际夹爪值对应的归一化，而不是瞬时目标
-                action_8[7] = (gripper_value - grip_low) / max(grip_high - grip_low, 1e-8)
+                action_8[7] = gripper_value  # 使用平滑后的夹爪目标值（单位 m）
 
-                data_buf["timestamp"].append(np.array(data.time, dtype=np.float64))
-                data_buf["qpos"].append(qpos_8)
-                data_buf["qvel"].append(qvel_8)
-                data_buf["action"].append(action_8)
-                data_buf["mocap_pose"].append(np.concatenate([mocap_pos, mocap_quat]))
-                data_buf["ee_pose"].append(np.concatenate([ee_pos, ee_quat]))
-                data_buf["ctrl"].append(data.ctrl.copy())
-                data_buf["raw_qpos"].append(data.qpos.copy())
-                data_buf["raw_qvel"].append(data.qvel.copy())
-
+                image_map: Dict[str, np.ndarray] = {}
                 for cam_name in camera_names:
                     renderer.update_scene(data, camera=cam_name)
                     img = renderer.render()
-                    data_buf[f"images/{cam_name}"].append(img.copy())
+                    image_map[cam_name] = img.copy()
+
+                _append_episode_frame(
+                    writer=writer,
+                    qpos_8=qpos_8,
+                    qvel_8=qvel_8,
+                    action_8=action_8,
+                    image_map=image_map,
+                )
 
             if flags["save"]:
-                stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                save_path = save_dir / f"episode_{stamp}_{episode_idx:04d}.hdf5"
-                _save_episode_hdf5(save_path, camera_names, data_buf, args.height, args.width)
-                _clear_buffer()
-                episode_idx += 1
+                if writer is None or int(writer["len"]) == 0:
+                    print(f"[save] 跳过空 episode: episode_{episode_idx}.hdf5")
+                else:
+                    _finalize_episode_writer(writer)
+                    writer = None
+                    episode_idx += 1
                 flags["save"] = False
+                # 按一次 Enter 只采集一条，保存后直接退出
+                flags["exit"] = True
 
             dt = model.opt.timestep - (time.time() - t0)
             if dt > 0:
                 time.sleep(dt)
 
+    if writer is not None:
+        # 用户异常退出时，确保文件句柄被关闭，避免损坏
+        root: h5py.File = writer["root"]  # type: ignore[assignment]
+        root.close()
     print("\n[info] 退出采集。")
-    if temp_xml is not None and temp_xml.exists():
-        temp_xml.unlink(missing_ok=True)
 
 
 if __name__ == "__main__":
