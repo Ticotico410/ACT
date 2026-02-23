@@ -1,8 +1,6 @@
 <mujoco model="panda_ee_pick_cube">
     <include file="scene.xml"/>
     <include file="panda_dependencies.xml"/>
-    <option gravity="0 0 0"/>
-
     <equality>
         <weld body1="mocap" body2="link7" relpose="0 0 0 1 0 0 0" solref="0.01 1" solimp="0.25 0.25 0.001" />
     </equality>
