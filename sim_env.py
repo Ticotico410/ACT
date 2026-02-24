@@ -48,8 +48,7 @@ class PandaTask(base.Task):
 
     def before_step(self, action, physics):
         arm_action = action[:7]
-        normalized_gripper_action = action[7]
-
+        normalized_gripper_action = float(np.clip(action[7], 0.0, 1.0))
         gripper_pos = PUPPET_GRIPPER_POSITION_UNNORMALIZE_FN(normalized_gripper_action)
         # panda_pick_cube: actuator8 (tendon) expects ctrl in [0, 255], not [0, 0.04]
         gripper_ctrl = gripper_pos * GRIPPER_POS_TO_CTRL

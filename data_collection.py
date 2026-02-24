@@ -11,6 +11,8 @@ import h5py
 import mujoco
 import mujoco.viewer
 import numpy as np
+from constants import DT
+from constants import PUPPET_GRIPPER_POSITION_NORMALIZE_FN, PUPPET_GRIPPER_VELOCITY_NORMALIZE_FN
 from utils import sample_box_pose
 
 """
@@ -305,7 +307,7 @@ def _update_overlay_labels(
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="鼠标拖动 mocap -> EE 跟随 + HDF5 数据采集（纯 MuJoCo API）")
+    parser = argparse.ArgumentParser(description="鼠标拖动 mocap -> EE 跟随 + HDF5 数据采集")
     parser.add_argument(
         "--model",
         type=str,
@@ -327,7 +329,14 @@ def main() -> None:
     parser.add_argument("--width", type=int, default=640, help="图像宽度")
     parser.add_argument("--height", type=int, default=480, help="图像高度")
     parser.add_argument("--ee-site", type=str, default="", help="可选：显式指定末端 site 名称")
-    parser.add_argument("--robot-gravcomp", type=float, default=1.0, help="机器人重力补偿系数（0~1）")
+    parser.add_argument("--robot-gravcomp", type=float, default=1.0, help="机器人重力补偿系数")
+    parser.add_argument("--save-dt", type=float, default=DT, help="数据保存步长")
+    parser.add_argument(
+        "--max-timesteps",
+        type=int,
+        default=0,
+        help="单条轨迹最多保存帧数；<=0 表示不限制（默认）",
+    )
     args = parser.parse_args()
 
     model_path = Path(args.model).expanduser().resolve()
@@ -346,6 +355,7 @@ def main() -> None:
     _enable_robot_gravcomp(model, root_body_name="link0", value=float(np.clip(args.robot_gravcomp, 0.0, 1.0)))
     data = mujoco.MjData(model)
     renderer = mujoco.Renderer(model, height=args.height, width=args.width)
+    save_stride = max(1, int(round(float(args.save_dt) / float(model.opt.timestep))))
 
     if model.nkey > 0:
         mujoco.mj_resetDataKeyframe(model, data, 0)
@@ -371,10 +381,17 @@ def main() -> None:
     print(f"[info] EE 跟踪对象: {ee_kind} '{ee_name}'")
     print("[info] 鼠标拖动: 先选中 mocap，按住 Ctrl + 鼠标右键拖拽平移")
     print(f"[info] mocap 姿态已锁定为固定四元数: {np.array2string(fixed_mocap_quat, precision=6)}")
+    max_steps_info = "unlimited" if int(args.max_timesteps) <= 0 else str(int(args.max_timesteps))
+    print(
+        f"[info] 保存采样: 每 {save_stride} 个仿真步存 1 帧 "
+        f"(sim dt={model.opt.timestep:.4f}s -> save dt≈{save_stride * model.opt.timestep:.4f}s), "
+        f"max_timesteps={max_steps_info}"
+    )
     print("[info] Space: 开始/暂停记录 | Enter: 保存当前 episode | E: 张开夹爪 | R: 闭合夹爪 | Esc: 退出")
 
     flags = {"recording": False, "save": False, "exit": False}
     saved_any_episode = False
+    record_step_counter = 0
     grip_low, grip_high = _gripper_range(model)
     # 当前夹爪值 & 目标值，用于平滑开合
     gripper_value = float(np.clip(data.qpos[7], grip_low, grip_high))
@@ -383,9 +400,11 @@ def main() -> None:
     writer: Optional[Dict[str, object]] = None
 
     def key_callback(keycode: int) -> None:
-        nonlocal gripper_target
+        nonlocal gripper_target, record_step_counter
         if keycode in SPACE_KEYS:
             flags["recording"] = not flags["recording"]
+            if flags["recording"] and writer is None:
+                record_step_counter = 0
             print(f"\n[key] Space -> {'开始记录' if flags['recording'] else '暂停记录'}")
         elif keycode in ENTER_KEYS:
             flags["save"] = True
@@ -395,10 +414,12 @@ def main() -> None:
             print("\n[key] Esc -> 退出")
         elif keycode in GRIPPER_OPEN_KEYS:
             gripper_target = grip_high
-            print(f"\n[key] E -> 夹爪张开目标 ({gripper_target:.4f})")
+            norm = PUPPET_GRIPPER_POSITION_NORMALIZE_FN(gripper_target)
+            print(f"\n[key] E -> 夹爪张开目标 物理={gripper_target:.4f}m 归一化={norm:.4f}")
         elif keycode in GRIPPER_CLOSE_KEYS:
             gripper_target = grip_low
-            print(f"\n[key] R -> 夹爪闭合目标 ({gripper_target:.4f})")
+            norm = PUPPET_GRIPPER_POSITION_NORMALIZE_FN(gripper_target)
+            print(f"\n[key] R -> 夹爪闭合目标 物理={gripper_target:.4f}m 归一化={norm:.4f}")
 
     last_print_t = 0.0
     mocap_initialized_after_viewer_sync = False
@@ -431,16 +452,7 @@ def main() -> None:
             if model.nu >= 2:
                 data.ctrl[0] = gripper_value
                 data.ctrl[1] = gripper_value
-            mujoco.mj_step(model, data)
-
-            mocap_pos = data.mocap_pos[mocap_id].copy()
-            mocap_quat = data.mocap_quat[mocap_id].copy()
-            ee_pos, ee_quat = _get_ee_pose(data, ee_kind, ee_id)
-            pos_err = float(np.linalg.norm(mocap_pos - ee_pos))
-
-            # 4) 仅做 GUI 叠加（终端不再每帧打印，避免刷屏）
-            _update_overlay_labels(viewer, mocap_pos, mocap_quat, ee_pos, ee_quat, pos_err)
-
+            # 仅调整“数据写入频率与对齐”，不改 mocap 跟踪/夹爪控制逻辑
             if flags["recording"]:
                 if writer is None:
                     save_path = save_dir / f"episode_{episode_idx}.hdf5"
@@ -454,28 +466,48 @@ def main() -> None:
                         action_dim=8,
                     )
 
-                # 严格对齐 ACT baseline：qpos/qvel/action 均使用物理量（m / rad / rad·s⁻¹）
-                # qpos[:7] 7 个臂关节角度（rad），qpos[7] 为 finger_joint1 位置（m，范围 0~0.04）
-                qpos_8 = data.qpos[:8].copy()
-                qvel_8 = data.qvel[:8].copy()
+                should_save_this_step = (record_step_counter % save_stride == 0)
+                max_steps = int(args.max_timesteps)
+                reached_limit = (max_steps > 0 and int(writer["len"]) >= max_steps)
+                if should_save_this_step and not reached_limit:
+                    # 与 ACT baseline 一致：同一控制时刻保存 (obs_t, action_t)
+                    qpos_8 = data.qpos[:8].copy()
+                    qvel_8 = data.qvel[:8].copy()
+                    # 严格对齐 reference：夹爪在数据里使用归一化 [0, 1]
+                    qpos_8[7] = PUPPET_GRIPPER_POSITION_NORMALIZE_FN(qpos_8[7])
+                    qvel_8[7] = PUPPET_GRIPPER_VELOCITY_NORMALIZE_FN(qvel_8[7])
+                    action_8 = qpos_8.copy()
+                    action_8[7] = PUPPET_GRIPPER_POSITION_NORMALIZE_FN(gripper_value)
 
-                # action = 当前时刻期望的关节目标（与 record_sim_episodes.py 保存格式一致）
-                action_8 = qpos_8.copy()
-                action_8[7] = gripper_value  # 使用平滑后的夹爪目标值（单位 m）
+                    image_map: Dict[str, np.ndarray] = {}
+                    for cam_name in camera_names:
+                        renderer.update_scene(data, camera=cam_name)
+                        img = renderer.render()
+                        image_map[cam_name] = img.copy()
 
-                image_map: Dict[str, np.ndarray] = {}
-                for cam_name in camera_names:
-                    renderer.update_scene(data, camera=cam_name)
-                    img = renderer.render()
-                    image_map[cam_name] = img.copy()
+                    _append_episode_frame(
+                        writer=writer,
+                        qpos_8=qpos_8,
+                        qvel_8=qvel_8,
+                        action_8=action_8,
+                        image_map=image_map,
+                    )
 
-                _append_episode_frame(
-                    writer=writer,
-                    qpos_8=qpos_8,
-                    qvel_8=qvel_8,
-                    action_8=action_8,
-                    image_map=image_map,
-                )
+                    if max_steps > 0 and int(writer["len"]) >= max_steps:
+                        flags["recording"] = False
+                        print(f"\n[info] 达到 max_timesteps={max_steps}，自动暂停记录")
+
+                record_step_counter += 1
+
+            mujoco.mj_step(model, data)
+
+            mocap_pos = data.mocap_pos[mocap_id].copy()
+            mocap_quat = data.mocap_quat[mocap_id].copy()
+            ee_pos, ee_quat = _get_ee_pose(data, ee_kind, ee_id)
+            pos_err = float(np.linalg.norm(mocap_pos - ee_pos))
+
+            # 4) 仅做 GUI 叠加（终端不再每帧打印，避免刷屏）
+            _update_overlay_labels(viewer, mocap_pos, mocap_quat, ee_pos, ee_quat, pos_err)
 
             if flags["save"]:
                 if writer is None or int(writer["len"]) == 0:

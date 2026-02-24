@@ -1,4 +1,4 @@
-<mujoco model="panda_ee_pick_cube">
+<mujoco model="panda_pick_cube">
     <include file="scene.xml"/>
     <include file="panda_dependencies.xml"/>
 
@@ -16,12 +16,19 @@
             <geom condim="4" solimp="2 1 0.01" solref="0.01 1" friction="1 0.005 0.0001" pos="0 0 0" size="0.02 0.02 0.02" type="box" name="red_box" rgba="1 0 0 1" />
         </body>
 
-        <!-- Goal point -->
-        <body name="target_point" pos="0.1 0.4 0.1">
-            <site pos="0 0 0" size="0.015" type="sphere" name="target_site" rgba="0 1 0 1"/>
-            <geom pos="0 0 0" size="0.01 0.002" type="cylinder" name="target_marker" 
-                  rgba="0 1 0 0.8" contype="0" conaffinity="0" group="2" mass="0"/>
+        <!-- Goal container -->
+        <body name="target_point" pos="0.0 0.5 0.05">
+            <site pos="0 0 0" size="0.015" type="sphere" name="target_site" rgba="0 1 0 0.3"/>
+            <geom name="trash_wall_front" type="box" pos="0 0.065 0" size="0.065 0.005 0.03"
+                  rgba="0 1 0 0.6" solimp="2 1 0.01" solref="0.01 1" friction="1 0.005 0.0001"/>
+            <geom name="trash_wall_back" type="box" pos="0 -0.065 0" size="0.065 0.005 0.03"
+                  rgba="0 1 0 0.6" solimp="2 1 0.01" solref="0.01 1" friction="1 0.005 0.0001"/>
+            <geom name="trash_wall_left" type="box" pos="0.065 0 0" size="0.005 0.065 0.03"
+                  rgba="0 1 0 0.6" solimp="2 1 0.01" solref="0.01 1" friction="1 0.005 0.0001"/>
+            <geom name="trash_wall_right" type="box" pos="-0.065 0 0" size="0.005 0.065 0.03"
+                  rgba="0 1 0 0.6" solimp="2 1 0.01" solref="0.01 1" friction="1 0.005 0.0001"/>
         </body>
+        
     </worldbody>
 
   <tendon>
