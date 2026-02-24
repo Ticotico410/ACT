@@ -5,8 +5,8 @@ DATA_DIR = str(pathlib.Path(__file__).parent.resolve() / 'datasets')
 SIM_TASK_CONFIGS = {
     'sim_pick_cube_scripted':{
         'dataset_dir': DATA_DIR + '/sim_pick_cube_scripted',
-        'num_episodes': 50,
-        'episode_len': 400,
+        'num_episodes': 14,
+        'episode_len': 1000,
         'camera_names': ['top']
     }
 }

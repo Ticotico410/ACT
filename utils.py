@@ -15,6 +15,15 @@ class EpisodicDataset(torch.utils.data.Dataset):
         self.camera_names = camera_names
         self.norm_stats = norm_stats
         self.is_sim = None
+        self.max_episode_len = 0
+        self.action_dim = 0
+        for episode_id in self.episode_ids:
+            dataset_path = os.path.join(self.dataset_dir, f'episode_{episode_id}.hdf5')
+            with h5py.File(dataset_path, 'r') as root:
+                action_shape = root['/action'].shape
+            self.max_episode_len = max(self.max_episode_len, int(action_shape[0]))
+            if self.action_dim == 0:
+                self.action_dim = int(action_shape[1])
         self.__getitem__(0) # initialize self.is_sim
 
     def __len__(self):
@@ -27,8 +36,8 @@ class EpisodicDataset(torch.utils.data.Dataset):
         dataset_path = os.path.join(self.dataset_dir, f'episode_{episode_id}.hdf5')
         with h5py.File(dataset_path, 'r') as root:
             is_sim = root.attrs['sim']
-            original_action_shape = root['/action'].shape
-            episode_len = original_action_shape[0]
+            action_shape = root['/action'].shape
+            episode_len = action_shape[0]
             if sample_full_episode:
                 start_ts = 0
             else:
@@ -48,10 +57,11 @@ class EpisodicDataset(torch.utils.data.Dataset):
                 action_len = episode_len - max(0, start_ts - 1) # hack, to make timesteps more aligned
 
         self.is_sim = is_sim
-        padded_action = np.zeros(original_action_shape, dtype=np.float32)
-        padded_action[:action_len] = action
-        is_pad = np.zeros(episode_len)
-        is_pad[action_len:] = 1
+        padded_action = np.zeros((self.max_episode_len, self.action_dim), dtype=np.float32)
+        valid_action_len = min(action_len, self.max_episode_len)
+        padded_action[:valid_action_len] = action[:valid_action_len]
+        is_pad = np.ones(self.max_episode_len, dtype=np.float32)
+        is_pad[:valid_action_len] = 0
 
         # new axis for different cameras
         all_cam_images = []
@@ -72,6 +82,8 @@ class EpisodicDataset(torch.utils.data.Dataset):
         image_data = image_data / 255.0
         action_data = (action_data - self.norm_stats["action_mean"]) / self.norm_stats["action_std"]
         qpos_data = (qpos_data - self.norm_stats["qpos_mean"]) / self.norm_stats["qpos_std"]
+        action_data = action_data.float()
+        qpos_data = qpos_data.float()
 
         return image_data, qpos_data, action_data, is_pad
 

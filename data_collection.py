@@ -374,6 +374,7 @@ def main() -> None:
     print("[info] Space: 开始/暂停记录 | Enter: 保存当前 episode | E: 张开夹爪 | R: 闭合夹爪 | Esc: 退出")
 
     flags = {"recording": False, "save": False, "exit": False}
+    saved_any_episode = False
     grip_low, grip_high = _gripper_range(model)
     # 当前夹爪值 & 目标值，用于平滑开合
     gripper_value = float(np.clip(data.qpos[7], grip_low, grip_high))
@@ -483,6 +484,7 @@ def main() -> None:
                     _finalize_episode_writer(writer)
                     writer = None
                     episode_idx += 1
+                    saved_any_episode = True
                 flags["save"] = False
                 # 按一次 Enter 只采集一条，保存后直接退出
                 flags["exit"] = True
@@ -492,9 +494,12 @@ def main() -> None:
                 time.sleep(dt)
 
     if writer is not None:
-        # 用户异常退出时，确保文件句柄被关闭，避免损坏
+        # 未按 Enter 成功保存时，删除尚未完成的文件
         root: h5py.File = writer["root"]  # type: ignore[assignment]
+        path: Path = writer["path"]       # type: ignore[assignment]
         root.close()
+        if not saved_any_episode and path.exists():
+            path.unlink()
     print("\n[info] 退出采集。")
 
 
