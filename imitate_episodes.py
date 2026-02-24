@@ -209,6 +209,7 @@ def eval_bc(config, ckpt_name, save_episode=True):
         ### set task
         if 'sim_pick_cube' in task_name:
             BOX_POSE[0] = sample_box_pose() # used in sim reset
+            # BOX_POSE[0] = [-0.02, 0.73, 0.05, 1, 0, 0, 0]
 
         ts = env.reset()
 

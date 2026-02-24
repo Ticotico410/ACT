@@ -1,17 +1,7 @@
 # ACT: Action Chunking with Transformers
 
-### *New*: [ACT tuning tips](https://docs.google.com/document/d/1FVIZfoALXg_ZkYKaYVh-qOlaXveq5CtvJHXkY25eYhs/edit?usp=sharing)
-TL;DR: if your ACT policy is jerky or pauses in the middle of an episode, just train for longer! Success rate and smoothness can improve way after loss plateaus.
-
-#### Project Website: https://tonyzhaozh.github.io/aloha/
-
-This repo contains the implementation of ACT, together with 2 simulated environments:
-Transfer Cube and Bimanual Insertion. You can train and evaluate ACT in sim or real.
-For real, you would also need to install [ALOHA](https://github.com/tonyzhaozh/aloha).
-
-### Updates:
-You can find all scripted/human demo for simulated environments [here](https://drive.google.com/drive/folders/1gPR03v05S1xiInoVJn7G7VJ9pDCnxq9O?usp=share_link).
-
+This is a modified ACT version for Franka Panda arm Pick&Place task. Users can use keyboard and mouse to control the robot in MuJoCo interface and design any customized manipulation tasks.
+When running the ``data_collection.py`` file, type ``space`` to start the recording, type ``ctrl + right click`` to control the end-effector, type ``E`` or ``R`` to close or open the gripper, type ``enter`` to save the ``.hdf5`` file, which store qpos, pvel, action sequence and images from top (or angle) camera under the same timestamp and control frequency.
 
 ### Repo Structure
 - ``imitate_episodes.py`` Train and Evaluate ACT
@@ -23,6 +13,7 @@ You can find all scripted/human demo for simulated environments [here](https://d
 - ``constants.py`` Constants shared across files
 - ``utils.py`` Utils such as data loading and helper functions
 - ``visualize_episodes.py`` Save videos from a .hdf5 dataset
+- ``data_collection.py`` Use mouse to control ee and collect the data
 
 
 ### Installation
@@ -54,13 +45,12 @@ To set up a new terminal, run:
 
 ### Simulated experiments
 
-We use ``sim_transfer_cube_scripted`` task in the examples below. Another option is ``sim_insertion_scripted``.
-To generated 50 episodes of scripted data, run:
+Use ``sim_pick_cube_scripted`` task in the examples below.
+To manually control the mocap and collect data, run:
 
-    python3 record_sim_episodes.py \
-    --task_name sim_transfer_cube_scripted \
-    --dataset_dir <data save dir> \
-    --num_episodes 50
+    python3 data_collection.py \
+    --model assets/panda_ee_pick_cube.xml\
+    --save-dir datasets/sim_pick_cube_scripted \
 
 To can add the flag ``--onscreen_render`` to see real-time rendering.
 To visualize the episode after it is collected, run
