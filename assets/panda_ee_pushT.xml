@@ -1,0 +1,39 @@
+<mujoco model="panda_ee_pick_cube">
+    <include file="scene.xml"/>
+    <include file="panda_dependencies.xml"/>
+    <equality>
+        <weld body1="mocap" body2="link7" relpose="0 0 0 1 0 0 0" solref="0.01 1" solimp="0.25 0.25 0.001" />
+    </equality>
+
+    <worldbody>
+        <include file="panda_stick.xml" />
+        <body mocap="true" name="mocap" pos="0.04550052 0.59999593 0.73150243">
+            <site pos="0 0 0" size="0.003 0.003 0.03" type="box" name="mocap_site1" rgba="1 0 1 1"/>
+            <site pos="0 0 0" size="0.003 0.03 0.003" type="box" name="mocap_site2" rgba="1 0 1 1"/>
+            <site pos="0 0 0" size="0.03 0.003 0.003" type="box" name="mocap_site3" rgba="1 0 1 1"/>
+            <geom name="mocap_helper" type="sphere" size="0.02" rgba="1 0 1 0.4" contype="0" conaffinity="0" group="0"/>
+        </body>
+
+        <body name="tee_block" pos="-0.1 0.5 0.0">
+            <joint name="tee_block_joint" type="free" frictionloss="0.01" />
+            <inertial pos="0 -0.025 0" mass="0.2" diaginertia="0.002 0.002 0.002" />
+            <include file="tee_block.xml"/>
+        </body>
+
+        <!-- T-shape goal -->
+        <body name="target_point" pos="0.0 0.5 0.0" euler="0 0 0.785398">
+            <geom name="goal_top" type="box" pos="0 0 0" size="0.05 0.015 0.002"
+                  rgba="0 1 0 0.6" contype="0" conaffinity="0"/>
+            <geom name="goal_stem" type="box" pos="0 -0.065 0" size="0.015 0.05 0.002"
+                  rgba="0 1 0 0.6" contype="0" conaffinity="0"/>
+        </body>
+    </worldbody>
+
+    <!-- No gripper actuators: panda_stick has stick only -->
+
+    <keyframe>
+        <key name="home" qpos="0 0 0 -1.57079 0 1.57079 -0.7853   0.0 0.5 0.05 1 0 0 0"/>
+    </keyframe>
+
+</mujoco>
+

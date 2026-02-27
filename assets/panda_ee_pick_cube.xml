@@ -7,9 +7,6 @@
 
     <worldbody>
         <include file="panda.xml" />
-        <!-- blue dummy point at fixed world position -->
-        <site name="dummy_point" pos="0.04550052 0.59999593 0.53150243"
-              size="0.01" type="sphere" rgba="0 0 1 1"/>
         <body mocap="true" name="mocap" pos="0.04550052 0.59999593 0.73150243">
             <site pos="0 0 0" size="0.003 0.003 0.03" type="box" name="mocap_site1" rgba="1 0 1 1"/>
             <site pos="0 0 0" size="0.003 0.03 0.003" type="box" name="mocap_site2" rgba="1 0 1 1"/>
@@ -25,7 +22,6 @@
 
         <!-- Goal container -->
         <body name="target_point" pos="0.0 0.5 0.05">
-            <site pos="0 0 0" size="0.015" type="sphere" name="target_site" rgba="0 1 0 0.3"/>
             <geom name="trash_wall_front" type="box" pos="0 0.065 0" size="0.065 0.005 0.03"
                   rgba="0 1 0 0.6" solimp="2 1 0.01" solref="0.01 1" friction="1 0.005 0.0001"/>
             <geom name="trash_wall_back" type="box" pos="0 -0.065 0" size="0.065 0.005 0.03"
@@ -38,8 +34,8 @@
     </worldbody>
 
     <actuator>
-        <position name="gripper_left" joint="finger_joint1" kp="500" ctrllimited="true" ctrlrange="0 0.04"/>
-        <position name="gripper_right" joint="finger_joint2" kp="500" ctrllimited="true" ctrlrange="0 0.04"/>
+        <position name="gripper_left" joint="finger_joint1" kp="800" ctrllimited="true" ctrlrange="0 0.04"/>
+        <position name="gripper_right" joint="finger_joint2" kp="800" ctrllimited="true" ctrlrange="0 0.04"/>
     </actuator>
 
     <keyframe>

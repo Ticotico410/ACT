@@ -18,7 +18,7 @@ ENTER_KEYS = {13, 257}
 ESC_KEYS = {27, 256}
 GRIPPER_OPEN_KEYS = {69, 101}   # E: Open 
 GRIPPER_CLOSE_KEYS = {82, 114}  # R: Close
-MAX_GRIPPER_STEP = 0.0002       # Maximum gripper step size
+MAX_GRIPPER_STEP = 0.0005       # Maximum gripper step size
 
 def _find_mocap_id(model: mujoco.MjModel) -> int:
     for body_id in range(model.nbody):
@@ -299,30 +299,15 @@ def _update_overlay_labels(
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Mouse drag mocap -> EE follow + HDF5 data collection")
-    parser.add_argument(
-        "--model",
-        type=str,
-        default="assets/panda_ee_pick_cube.xml",
-        help="MuJoCo XML path",
-    )
-    parser.add_argument(
-        "--save-dir",
-        type=str,
-        default="datasets/manual_mocap_pick_cube",
-        help="Data save directory",
-    )
-    parser.add_argument(
-        "--camera-names",
-        type=str,
-        default="top",
-        help="top,angle",
-    )
+    parser.add_argument("--model", type=str, default="assets/panda_ee_pick_cube.xml", help="MuJoCo XML path")
+    parser.add_argument("--save-dir", type=str, default="datasets/manual_mocap_pick_cube", help="Data save directory")
+    parser.add_argument("--camera-names", type=str, default="top", help="top,angle")
     parser.add_argument("--width", type=int, default=640, help="Image width")
     parser.add_argument("--height", type=int, default=480, help="Image height")
     parser.add_argument("--ee-site", type=str, default="", help="end-effector site name")
     parser.add_argument("--robot-gravcomp", type=float, default=1.0, help="Robot gravity compensation coefficient")
     parser.add_argument("--save-dt", type=float, default=DT, help="Save data step")
-    parser.add_argument("--guide-cameras", type=str, default="top,angle", help="Fixed guide window")
+    parser.add_argument("--guide-cameras", type=str, default="angle,left_pillar,right_pillar,front_close", help="Fixed guide window")
     parser.add_argument("--guide-width", type=int, default=400, help="Guide window width")
     parser.add_argument("--guide-height", type=int, default=300, help="Guide window height")
     parser.add_argument("--max-timesteps", type=int, default=0, help="Maximum number of frames to save per path")
@@ -486,7 +471,7 @@ def main() -> None:
 
                     if max_steps > 0 and int(writer["len"]) >= max_steps:
                         flags["recording"] = False
-                        print(f"\n[info] 达到 max_timesteps={max_steps}，自动暂停记录")
+                        print(f"\n[info] Reached max_timesteps={max_steps}, automatically pause recording")
 
                 record_step_counter += 1
 
@@ -501,6 +486,7 @@ def main() -> None:
             _update_overlay_labels(viewer, mocap_pos, mocap_quat, ee_pos, ee_quat, pos_err)
             if guide_enabled:
                 status = "REC" if flags["recording"] else "PAUSE"
+                tiles: List[np.ndarray] = []
                 for cam_name, guide_renderer in guide_renderers.items():
                     guide_renderer.update_scene(data, camera=cam_name)
                     guide_img = guide_renderer.render()
@@ -515,12 +501,23 @@ def main() -> None:
                         1,
                         cv2.LINE_AA,
                     )
-                    cv2.imshow(f"ACT Guide: {cam_name}", guide_bgr)
+                    tiles.append(guide_bgr)
+
+                n_cols = 2
+                blank = np.zeros_like(tiles[0])
+                rows: List[np.ndarray] = []
+                for i in range(0, len(tiles), n_cols):
+                    row_tiles = tiles[i : i + n_cols]
+                    if len(row_tiles) < n_cols:
+                        row_tiles.append(blank)
+                    rows.append(cv2.hconcat(row_tiles))
+                guide_canvas = cv2.vconcat(rows)
+                cv2.imshow("ACT Guide MultiView", guide_canvas)
                 cv2.waitKey(1)
 
             if flags["save"]:
                 if writer is None or int(writer["len"]) == 0:
-                    print(f"[save] 跳过空 episode: episode_{episode_idx}.hdf5")
+                    print(f"[save] Skipped empty episode: episode_{episode_idx}.hdf5")
                 else:
                     _finalize_episode_writer(writer)
                     writer = None

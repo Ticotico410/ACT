@@ -1,0 +1,6 @@
+<mujocoinclude>
+  <geom name="tee_top" type="box" pos="0 0 0" size="0.05 0.015 0.02"
+        rgba="0.2 0.2 1 1" condim="4" solimp="2 1 0.01" solref="0.01 1" friction="1 0.005 0.0001"/>
+  <geom name="tee_stem" type="box" pos="0 -0.065 0" size="0.015 0.05 0.02"
+        rgba="0.2 0.2 1 1" condim="4" solimp="2 1 0.01" solref="0.01 1" friction="1 0.005 0.0001"/>
+</mujocoinclude>

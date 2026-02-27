@@ -1,6 +1,10 @@
 <mujocoinclude>
 <!--    <option timestep='0.0025' iterations="50" tolerance="1e-10" solver="Newton" jacobian="dense" cone="elliptic"/>-->
 
+    <asset>
+        <texture name="grid" type="2d" builtin="checker" rgb1="0.2 0.3 0.4" rgb2="0.3 0.4 0.5" width="300" height="300" mark="edge" markrgb="0.15 0.25 0.35"/>
+        <material name="grid" texture="grid" texrepeat="4 4" reflectance="0.1"/>
+    </asset>
 
     <visual>
         <map fogstart="1.5" fogend="5" force="0.1" znear="0.1"/>
@@ -9,6 +13,7 @@
     </visual>
 
     <worldbody>
+        <geom name="floor" type="plane" pos="0 0 -0.02" size="2 2 0.01" material="grid" contype="1" conaffinity="1"/>
         <light castshadow="false" directional='true' diffuse='.3 .3 .3' specular='0.3 0.3 0.3' pos='-1 -1 1'
                dir='1 1 -1'/>
         <light directional='true' diffuse='.3 .3 .3' specular='0.3 0.3 0.3' pos='1 -1 1' dir='-1 1 -1'/>
